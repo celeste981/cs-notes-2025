@@ -1,4 +1,4 @@
-package twosum
+package _1_array_hash
 
 import (
 	"reflect"

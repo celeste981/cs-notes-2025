@@ -1,4 +1,4 @@
-package merge
+package _2_normal_array
 
 import (
 	"sort"

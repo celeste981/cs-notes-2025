@@ -1,4 +1,4 @@
-package twosum
+package _1_array_hash
 
 func TwoSum(nums []int, target int) []int {
 	var res []int

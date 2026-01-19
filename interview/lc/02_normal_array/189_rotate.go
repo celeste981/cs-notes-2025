@@ -1,4 +1,4 @@
-package rotate
+package _2_normal_array
 
 func Rotate(nums []int, k int) []int {
 	if k == 0 {
@@ -8,12 +8,13 @@ func Rotate(nums []int, k int) []int {
 	k %= len(nums)
 
 	for i := 0; i < k; i++ {
-		ans[i] = nums[len(nums)-i-1]
+		ans[i] = nums[len(nums)-k+i]
 	}
 
 	for i := k; i < len(nums); i++ {
 		ans[i] = nums[i-k]
 	}
 
-	return ans
+	nums = ans
+	return nums
 }

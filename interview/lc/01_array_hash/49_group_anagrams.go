@@ -1,4 +1,4 @@
-package groupAnagrams
+package _1_array_hash
 
 func GroupAnagrams(strs []string) [][]string {
 	res := make([][]string, 0)

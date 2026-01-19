@@ -1,4 +1,4 @@
-package maxSubArray
+package _2_normal_array
 
 func MaxSubArray(nums []int) int {
 	var ans, cur = nums[0], nums[0]

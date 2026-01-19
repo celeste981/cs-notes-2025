@@ -1,4 +1,4 @@
-package maxSubArray
+package _2_normal_array
 
 import (
 	"testing"
