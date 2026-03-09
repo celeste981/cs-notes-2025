@@ -1,22 +1,19 @@
 package _3_binary_tree
 
-func levelOrder(root *TreeNode) [][]int {
-	var ans [][]int
+func rightSideView(root *TreeNode) []int {
+	var ans []int
 	if root == nil {
 		return ans
 	}
+	var level [][]int
 	queue := []*TreeNode{root}
 	for len(queue) > 0 {
-		// 处理当前层
+		var curLevel []int
 		size := len(queue)
-		var level []int
-		// 要用size，不能用 len(queue)
 		for i := 0; i < size; i++ {
-			// 记录当前节点
 			cur := queue[0]
-			level = append(level, cur.Val)
+			curLevel = append(curLevel, cur.Val)
 			queue = queue[1:]
-			// 将子结点入队
 			if cur.Left != nil {
 				queue = append(queue, cur.Left)
 			}
@@ -24,7 +21,10 @@ func levelOrder(root *TreeNode) [][]int {
 				queue = append(queue, cur.Right)
 			}
 		}
-		ans = append(ans, level)
+		level = append(level, curLevel)
+	}
+	for i := 0; i < len(level); i++ {
+		ans = append(ans, level[i][len(level[i])-1])
 	}
 	return ans
 }
