@@ -1,0 +1,25 @@
+package _5_dp
+
+import (
+	"math"
+)
+
+func numSquares(n int) int {
+	dp := make([]int, n+1)
+	dp[1] = 1
+	for i := 1; i <= n; i++ {
+		dp[i] = math.MaxInt
+		for j := 1; j*j <= i; j++ {
+			dp[i] = min(dp[i], dp[i-j*j]+1)
+		}
+	}
+	return dp[n]
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	} else {
+		return b
+	}
+}
