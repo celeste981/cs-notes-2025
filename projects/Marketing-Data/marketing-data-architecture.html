@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marketing-Data 架构图解</title>
+  <style>
+    :root {
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --ink: #17202c;
+      --muted: #627084;
+      --line: #d7e0ea;
+      --blue: #1d4ed8;
+      --green: #047857;
+      --amber: #b45309;
+      --red: #be123c;
+      --purple: #7c3aed;
+      --shadow: 0 14px 36px rgba(20, 29, 42, .08);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); line-height: 1.55; }
+    header { background: var(--panel); border-bottom: 1px solid var(--line); padding: 34px 7vw 24px; position: sticky; top: 0; z-index: 5; }
+    .crumb { color: var(--muted); font-size: 14px; margin-bottom: 6px; }
+    h1 { margin: 0; font-size: 34px; letter-spacing: 0; }
+    .sub { margin: 10px 0 0; color: var(--muted); max-width: 940px; }
+    nav { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
+    nav a, button.tab { border: 1px solid var(--line); background: #fff; color: var(--ink); padding: 9px 13px; border-radius: 8px; text-decoration: none; font-size: 14px; cursor: pointer; }
+    main { padding: 28px 7vw 56px; }
+    section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 24px; margin-bottom: 22px; box-shadow: var(--shadow); }
+    h2 { margin: 0 0 18px; font-size: 24px; }
+    h3 { margin: 0 0 8px; font-size: 17px; }
+    .pipeline { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+    .step { border: 1px solid var(--line); border-top: 5px solid var(--blue); border-radius: 8px; padding: 14px; background: #fff; min-height: 132px; }
+    .step strong { display: block; margin-bottom: 8px; }
+    .step span { color: var(--muted); font-size: 14px; }
+    .green { border-top-color: var(--green); }
+    .amber { border-top-color: var(--amber); }
+    .red { border-top-color: var(--red); }
+    .purple { border-top-color: var(--purple); }
+    .grid { display: grid; gap: 14px; }
+    .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: #fbfdff; min-height: 122px; }
+    .card p { margin: 0; color: var(--muted); }
+    .callout { border: 1px solid #bfdbfe; border-left: 5px solid var(--blue); border-radius: 8px; padding: 16px; background: #eff6ff; margin-bottom: 16px; }
+    .callout strong { display: block; margin-bottom: 6px; }
+    .memory { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .memory div { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: #fff; min-height: 96px; }
+    .memory b { display: block; font-size: 22px; color: var(--blue); margin-bottom: 4px; }
+    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .chart-card { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: #fbfdff; }
+    .chart-title { margin: 0 0 12px; font-weight: 700; }
+    .chart-note { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+    .funnel { display: grid; gap: 8px; justify-items: center; }
+    .funnel-step { color: #fff; border-radius: 7px; padding: 10px 12px; text-align: center; font-size: 14px; min-height: 42px; }
+    .funnel-step span { display: block; font-size: 12px; opacity: .9; }
+    .funnel-blue { background: var(--blue); width: 100%; }
+    .funnel-green { background: var(--green); width: 88%; }
+    .funnel-amber { background: var(--amber); width: 74%; }
+    .funnel-red { background: var(--red); width: 62%; }
+    .funnel-purple { background: var(--purple); width: 52%; }
+    .bar-row { display: grid; grid-template-columns: 132px 1fr; gap: 10px; align-items: center; margin: 10px 0; }
+    .bar-row label { color: var(--ink); font-size: 14px; }
+    .bar-track { height: 28px; background: #eef2f7; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+    .bar-fill { height: 100%; color: #fff; display: flex; align-items: center; padding-left: 9px; font-size: 13px; white-space: nowrap; }
+    .bar-blue { background: var(--blue); }
+    .bar-green { background: var(--green); }
+    .bar-amber { background: var(--amber); }
+    .bar-red { background: var(--red); }
+    .bar-purple { background: var(--purple); }
+    .tag { display: inline-block; color: #fff; background: var(--blue); padding: 3px 8px; font-size: 12px; border-radius: 999px; margin-bottom: 8px; }
+    .tag.green { background: var(--green); }
+    .tag.amber { background: var(--amber); }
+    .tag.red { background: var(--red); }
+    .tag.purple { background: var(--purple); }
+    .tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+    button.tab.active { border-color: var(--blue); color: var(--blue); background: #eff6ff; }
+    .details { display: none; }
+    .details.active { display: block; }
+    .answer { border-left: 4px solid var(--green); padding: 12px 14px; background: #ecfdf5; border-radius: 6px; color: #12312b; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; }
+    code { background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    @media (max-width: 1100px) {
+      .pipeline, .grid.cols-4, .grid.cols-3, .memory, .chart-grid, .bar-row { grid-template-columns: 1fr; }
+      .funnel-step { width: 100% !important; }
+      header { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="crumb">Projects / Marketing-Data</div>
+    <h1>Marketing-Data 架构图解</h1>
+    <p class="sub">一句话：Marketing-Data 负责离线人群和数据预处理，把大查询、文件处理、batch history、Kafka 推送从 Marketing 主执行链路里拆出来。</p>
+    <nav>
+      <a href="./marketing-data-architecture.md">Markdown 版</a>
+      <a href="./README.md">项目索引</a>
+      <a href="../Marketing/marketing-engine-architecture.md">Marketing Engine</a>
+      <a href="../Insurance/marketing-data-interview-notes.md">面试专项</a>
+    </nav>
+  </header>
+  <main>
+    <section>
+      <h2>主链路</h2>
+      <div class="callout">
+        <strong>记忆主线</strong>
+        Marketing 主服务负责“什么时候、对谁、做什么动作”，Marketing-Data 专门负责“人群数据从哪里来、怎么批量抽、怎么推回 Marketing、怎么记录批次结果”。
+      </div>
+      <div class="pipeline">
+        <div class="step"><strong>Marketing Plan</strong><span>生成 plan_id、batch_id、data_source、group_condition、dest_topic。</span></div>
+        <div class="step green"><strong>Service 校验</strong><span>校验 plan、batch、topic、data source、condition、user group。</span></div>
+        <div class="step amber"><strong>History 幂等</strong><span>batch_id 已存在直接返回；不存在先写 init history。</span></div>
+        <div class="step red"><strong>Async Handler</strong><span>根据 data_source 选择 ES/File/Hive/Insight handler。</span></div>
+        <div class="step purple"><strong>Kafka Push</strong><span>过滤、去重、格式化 PlanRawMessage 后推目标 topic。</span></div>
+        <div class="step"><strong>Result Monitor</strong><span>更新 success/failed、数量、耗时、错误详情和 Prometheus。</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>面试记忆法</h2>
+      <div class="memory">
+        <div><b>拆</b><strong>拆出服务</strong><span>把稳定但重的数据抽取从 Marketing 主执行链路拆出来。</span></div>
+        <div><b>幂</b><strong>batch 幂等</strong><span><code>batch_id</code> 已存在直接返回，避免重复抽取。</span></div>
+        <div><b>记</b><strong>History 记录</strong><span>先写 init history，再异步执行并更新状态。</span></div>
+        <div><b>插</b><strong>Handler 插件化</strong><span>ES、File、Hive、Insight 用统一生命周期扩展。</span></div>
+        <div><b>推</b><strong>Kafka 推送</strong><span>格式化 PlanRawMessage 后发到目标 topic。</span></div>
+        <div><b>监</b><strong>监控排障</strong><span>用 history、Prometheus、日志定位 batch 结果。</span></div>
+      </div>
+      <div class="answer">1 分钟讲法：Marketing-Data 是 Marketing 的离线数据抽取服务。它把 ES/S3/CSV/Hive/Insight 这些耗时、稳定、可重试的数据处理从 Marketing 主流程拆出来。入口校验 plan_id、batch_id、data_source 和 topic，Manager 用 batch_id 做幂等，先写 history，再异步选择 handler 拉数、过滤、去重、推 Kafka，最后更新执行结果和监控。</div>
+    </section>
+
+    <section>
+      <h2>核心模块</h2>
+      <div class="grid cols-4">
+        <div class="card"><span class="tag">API</span><h3>Internal Service</h3><p><code>OfflineDataFetchAndPush</code>、<code>QueryOfflinePlanHistory</code>。</p></div>
+        <div class="card"><span class="tag green">Admin</span><h3>QueryEsList</h3><p>Admin 侧 ES 查询预览，限制 <code>size <= 100</code>。</p></div>
+        <div class="card"><span class="tag amber">Manager</span><h3>Fetch Manager</h3><p>batch 幂等、history 初始化、异步执行、结果更新。</p></div>
+        <div class="card"><span class="tag red">Handler</span><h3>DataSource</h3><p>统一 Before/Process/After 生命周期，按 data_source 自注册。</p></div>
+        <div class="card"><span class="tag purple">ES</span><h3>Scroll 查询</h3><p>DSL 转换、custom tag、scroll batch、max length 检查。</p></div>
+        <div class="card"><span class="tag">File</span><h3>S3 / CSV</h3><p>文件读取、mapping、正则过滤、日期过滤、路径记录。</p></div>
+        <div class="card"><span class="tag green">MQ</span><h3>Producer/Consumer</h3><p>离线推送和实时 pre-filter 转发都通过 Kafka。</p></div>
+        <div class="card"><span class="tag amber">Monitor</span><h3>History + Metric</h3><p>记录 total、filter_total、unique_total、err_detail、duration。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>图表：离线抽取漏斗和排障优先级</h2>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-title">离线数据抽取漏斗</div>
+          <div class="funnel">
+            <div class="funnel-step funnel-blue">请求参数校验<span>plan_id / batch_id / data_source / topic</span></div>
+            <div class="funnel-step funnel-green">batch history 幂等<span>已存在直接返回，不重复抽取</span></div>
+            <div class="funnel-step funnel-amber">DataSource handler<span>ES / File / Hive / Insight</span></div>
+            <div class="funnel-step funnel-red">过滤与去重<span>condition / regexp / BloomFilter</span></div>
+            <div class="funnel-step funnel-purple">Kafka 推送和监控<span>topic / history / Prometheus</span></div>
+          </div>
+          <p class="chart-note">漏斗宽度只是帮助记忆链路收敛过程，不代表真实转化率或数据量。</p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">排障优先级</div>
+          <div class="bar-row"><label>batch history</label><div class="bar-track"><div class="bar-fill bar-blue" style="width:94%">第一入口</div></div></div>
+          <div class="bar-row"><label>data_source</label><div class="bar-track"><div class="bar-fill bar-green" style="width:86%">定位 handler</div></div></div>
+          <div class="bar-row"><label>ES / 文件</label><div class="bar-track"><div class="bar-fill bar-amber" style="width:78%">DSL、mapping、S3 路径</div></div></div>
+          <div class="bar-row"><label>Kafka</label><div class="bar-track"><div class="bar-fill bar-red" style="width:72%">producer/consumer/topic</div></div></div>
+          <div class="bar-row"><label>Marketing 端</label><div class="bar-track"><div class="bar-fill bar-purple" style="width:64%">消费和后续执行</div></div></div>
+          <p class="chart-note">面试排障可以按这个顺序讲：先查 batch，再查来源，再查推送，再查消费。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>DataSource Handler</h2>
+      <div class="tabs">
+        <button class="tab active" data-target="es">ES</button>
+        <button class="tab" data-target="file">File/Hive/Insight</button>
+        <button class="tab" data-target="prefilter">pre-filter</button>
+        <button class="tab" data-target="debug">排障</button>
+      </div>
+      <div id="es" class="details active"><div class="answer">ES handler：解析 group_condition -> 转 DSL -> max length 检查 -> scroll 拉取 -> BloomFilter 去重 -> FormatOfflineRawResult -> PushWithTopic。</div></div>
+      <div id="file" class="details"><div class="answer">File handler：读取 S3/CSV -> mapping 转字段 -> 正则和日期过滤 -> append data -> BloomFilter 去重 -> 推 Kafka -> 记录文件路径。</div></div>
+      <div id="prefilter" class="details"><div class="answer">pre-filter：source topic -> reliable consumer -> pre_filter_tab 规则缓存 -> RegexpMatch -> FillVariable -> 补 product_type/user_id -> dest topic。</div></div>
+      <div id="debug" class="details"><div class="answer">排障从 batch_id 开始：查 history 状态和错误，再按 data_source 看 ES DSL/mapping、S3/CSV/Hive 文件、Kafka topic 或 Marketing 消费端。</div></div>
+    </section>
+
+    <section>
+      <h2>面试对比</h2>
+      <table>
+        <tr><th>维度</th><th>Marketing</th><th>Marketing-Data</th></tr>
+        <tr><td>定位</td><td>运营计划主执行引擎</td><td>离线数据抽取和预处理服务</td></tr>
+        <tr><td>核心问题</td><td>什么时候、对谁、做什么动作</td><td>人群从哪里来、怎么批量处理、怎么推给 Marketing</td></tr>
+        <tr><td>关键模块</td><td>Plan、Processor、Handler、RuleCenter</td><td>OfflineDataFetchAndPush、history、DataSource handler、pre-filter</td></tr>
+        <tr><td>风险</td><td>重复触达、规则漏过滤、handler 幂等</td><td>重复抽取、大查询超时、文件异常、batch 状态丢失</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>优化项重点</h2>
+      <div class="grid cols-3">
+        <div class="card"><span class="tag">Split</span><h3>从 Marketing 拆出</h3><p>离线数据抽取稳定但耗时，拆出后避免重试和大查询影响主执行链路。</p></div>
+        <div class="card"><span class="tag green">Idempotent</span><h3>batch_id 幂等</h3><p>同一 batch 已存在 history 直接返回，配合唯一索引降低重复抽取风险。</p></div>
+        <div class="card"><span class="tag amber">History</span><h3>先记账再异步</h3><p>任务启动前写 init history，失败也有状态、错误详情和排障入口。</p></div>
+        <div class="card"><span class="tag red">Handler</span><h3>数据源插件化</h3><p>ES/File/Hive/Insight 共用 Before/Process/After 生命周期，新增数据源不改主流程。</p></div>
+        <div class="card"><span class="tag purple">Query</span><h3>查询保护</h3><p>Admin 预览限制 <code>size <= 100</code>，ES scroll 用 maxLength、BloomFilter 和监控保护。</p></div>
+        <div class="card"><span class="tag green">Prefilter</span><h3>pre-filter 可切换</h3><p>预过滤从 Marketing 迁出时保留配置开关，出现问题能回退旧链路。</p></div>
+      </div>
+      <table style="margin-top:16px">
+        <tr><th>风险点</th><th>怎么回答</th></tr>
+        <tr><td>Kafka producer 失败</td><td>代码里 producer 失败会记录日志和错误；面试可说需要结合 history、日志和消费端结果判断是否补偿，不能只看接口返回。</td></tr>
+        <tr><td>大人群抽取慢</td><td>从 ES DSL、scroll batch、maxLength、去重、目标 topic 消费能力和 Prometheus 指标逐层排查。</td></tr>
+        <tr><td>文件数据异常</td><td>看 S3/CSV 路径、字段 mapping、正则/日期过滤、错误详情和 batch history。</td></tr>
+      </table>
+    </section>
+  </main>
+  <script>
+    document.querySelectorAll("button.tab").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        document.querySelectorAll("button.tab").forEach(function (x) { x.classList.remove("active"); });
+        document.querySelectorAll(".details").forEach(function (x) { x.classList.remove("active"); });
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.target).classList.add("active");
+      });
+    });
+  </script>
+</body>
+</html>

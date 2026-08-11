@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marketing 用户名单 Redis / Roaring Bitmap 图解</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --paper: #ffffff;
+      --ink: #17202a;
+      --muted: #65717f;
+      --line: #d8dee8;
+      --blue: #2563eb;
+      --blue-soft: #eaf1ff;
+      --green: #177245;
+      --green-soft: #e7f5ed;
+      --amber: #a15c00;
+      --amber-soft: #fff2d8;
+      --red: #b42318;
+      --red-soft: #fde7e4;
+      --violet: #6d4aff;
+      --violet-soft: #f0edff;
+      --teal: #0f766e;
+      --teal-soft: #e3f5f2;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.65;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.96);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 18px 20px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    code {
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: #eef1f5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      word-break: break-word;
+    }
+
+    .eyebrow,
+    .muted {
+      color: var(--muted);
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .nav a {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 5px 9px;
+      background: #fff;
+      color: var(--ink);
+      font-size: 14px;
+    }
+
+    main {
+      padding-bottom: 32px;
+    }
+
+    section {
+      margin-top: 18px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 14px;
+    }
+
+    .callout {
+      padding: 16px;
+      border: 1px solid #a8c6ff;
+      border-radius: var(--radius);
+      background: var(--blue-soft);
+    }
+
+    .mini-grid,
+    .metric-grid,
+    .store-grid,
+    .answer-grid {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .mini-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .metric-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .store-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .answer-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card,
+    .metric,
+    .store {
+      min-height: 118px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 24px;
+      line-height: 1.2;
+      color: var(--blue);
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+      align-items: stretch;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 118px;
+      padding: 14px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .stage strong {
+      display: block;
+      color: var(--ink);
+    }
+
+    .stage .muted {
+      color: var(--muted);
+    }
+
+    .stage::after {
+      content: ">";
+      position: absolute;
+      right: -11px;
+      top: 44%;
+      color: #93a1b3;
+      font-weight: 700;
+    }
+
+    .stage:last-child::after {
+      content: "";
+    }
+
+    .stage.active {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .stage.active strong {
+      color: #14356f;
+    }
+
+    .stage.active .muted {
+      color: #43566e;
+    }
+
+    .detail {
+      margin-top: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+      align-items: start;
+    }
+
+    .bits {
+      display: grid;
+      grid-template-columns: 5fr 3fr;
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .bit-part {
+      min-height: 78px;
+      padding: 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .bit-part.high {
+      background: var(--violet-soft);
+      border-color: #c9bfff;
+    }
+
+    .bit-part.low {
+      background: var(--teal-soft);
+      border-color: #a7ded6;
+    }
+
+    .calc {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    input {
+      width: 100%;
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--blue);
+      border-radius: 6px;
+      background: var(--blue);
+      color: #fff;
+      padding: 10px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .calc-result {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .result-box {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+      min-width: 0;
+    }
+
+    .result-box code {
+      display: block;
+      margin-top: 4px;
+      overflow-wrap: anywhere;
+    }
+
+    .redis-graph {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-top: 14px;
+      align-items: stretch;
+    }
+
+    .redis-box {
+      padding: 14px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .redis-box.meta {
+      border-color: #c9bfff;
+      background: var(--violet-soft);
+    }
+
+    .redis-box.set {
+      border-color: #9fd9b7;
+      background: var(--green-soft);
+    }
+
+    .redis-box.bitmap {
+      border-color: #ffd99c;
+      background: var(--amber-soft);
+    }
+
+    .redis-box.run {
+      border-color: #f6aaa4;
+      background: var(--red-soft);
+    }
+
+    .query-path {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .query-step {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+      min-height: 116px;
+    }
+
+    .chart-box {
+      overflow-x: auto;
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    svg {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+
+    .dot.blue {
+      background: var(--blue);
+    }
+
+    .dot.green {
+      background: var(--green);
+    }
+
+    .dot.amber {
+      background: var(--amber);
+    }
+
+    .dot.red {
+      background: var(--red);
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+    }
+
+    .table th,
+    .table td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .table th {
+      background: #f2f4f8;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .tab {
+      background: #fff;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+    .tab.active {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    .answer {
+      margin-top: 12px;
+      padding: 16px;
+      border: 1px solid #a8c6ff;
+      border-radius: var(--radius);
+      background: var(--blue-soft);
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .state {
+      min-height: 118px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+      position: relative;
+    }
+
+    .state::after {
+      content: ">";
+      position: absolute;
+      right: -10px;
+      top: 44%;
+      color: #93a1b3;
+      font-weight: 700;
+    }
+
+    .state:last-child::after {
+      content: "";
+    }
+
+    @media (max-width: 980px) {
+      .summary,
+      .split,
+      .redis-graph {
+        grid-template-columns: 1fr;
+      }
+
+      .mini-grid,
+      .metric-grid,
+      .store-grid,
+      .flow,
+      .query-path,
+      .timeline,
+      .answer-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .stage::after,
+      .state::after {
+        content: "";
+      }
+    }
+
+    @media (max-width: 640px) {
+      .wrap {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      section {
+        padding: 16px;
+      }
+
+      .mini-grid,
+      .metric-grid,
+      .store-grid,
+      .flow,
+      .query-path,
+      .timeline,
+      .answer-grid,
+      .calc,
+      .calc-result {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 21px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <p class="eyebrow">Projects / Marketing / Group Center</p>
+      <h1>用户名单 Redis / Roaring Bitmap 图解</h1>
+      <nav class="nav" aria-label="页面导航">
+        <a href="#overview">总览</a>
+        <a href="#choice">方案选型</a>
+        <a href="#split">高低位拆分</a>
+        <a href="#redis">Redis 结构</a>
+        <a href="#flow">写入和查询</a>
+        <a href="#charts">数据图表</a>
+        <a href="#lifecycle">生命周期</a>
+        <a href="#answer">面试说法</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="overview">
+      <div class="summary">
+        <div class="callout">
+          <h2>先记住一句话</h2>
+          <p>Marketing 用户组匹配本质是 <strong>membership check</strong>：给一个 <code>user_id</code>，判断它是否在某个目标人群里。优化点是把离线名单提前转成可快速查询的 Redis / LocalCache 结构，避免在线扫 DB、ES 或 S3。</p>
+        </div>
+        <div class="card">
+          <h3>面试主线</h3>
+          <p class="muted">旧 Bloom / 固定 bitmap 有误判和内存浪费；Roaring Bitmap 做精准整数集合；Redis 落地用 high/low 分段、meta hash、Set/Bitmap/Run 三类容器；生命周期靠刷新、巡检、marker 和告警兜底。</p>
+        </div>
+      </div>
+
+      <div class="mini-grid">
+        <div class="metric">
+          <strong>0</strong>
+          <span>Roaring 精准匹配误判概率</span>
+        </div>
+        <div class="metric">
+          <strong>24</strong>
+          <span>低位 bit 数，单容器覆盖 2^24 个 lowValue</span>
+        </div>
+        <div class="metric">
+          <strong>2M</strong>
+          <span>40/24 方案下单 bitmap 容器最大约占用</span>
+        </div>
+        <div class="metric">
+          <strong>1500+</strong>
+          <span>mepage 场景全局 QPS 样本，适合本地缓存减 Redis 压力</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="choice">
+      <h2>方案选型图</h2>
+      <p class="muted">选型不是“全部上 Redis”。核心看数据量、并发、是否即时查询、是否允许误差。</p>
+      <div class="store-grid">
+        <div class="store">
+          <h3>MySQL</h3>
+          <p class="muted">小名单、低并发、简单查询。优点是直接；缺点是不适合在线大规模 membership check。</p>
+        </div>
+        <div class="store">
+          <h3>LocalCache</h3>
+          <p class="muted">mepage 这类高 QPS 热点分组。用 <code>roaring64.Bitmap.Contains</code> 在进程内判断。</p>
+        </div>
+        <div class="store">
+          <h3>Redis Roaring</h3>
+          <p class="muted">大名单、需要精准匹配、不能每次扫文件。用 Redis 二级结构做快速判断。</p>
+        </div>
+        <div class="store">
+          <h3>RemoteLocalCache</h3>
+          <p class="muted">Marketing 先把序列化 Roaring Bitmap 存 Redis，其他服务拉到本地判断。</p>
+        </div>
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>场景</th>
+            <th>数据量</th>
+            <th>并发</th>
+            <th>查询存储</th>
+            <th>面试解释</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Seller Promotion 名单</td>
+            <td>小</td>
+            <td>低</td>
+            <td>MySQL</td>
+            <td>低压场景不必引入复杂缓存。</td>
+          </tr>
+          <tr>
+            <td>mepage 资源位名单</td>
+            <td>大</td>
+            <td>高</td>
+            <td>Local Roaring Bitmap</td>
+            <td>高 QPS 下先保护 Redis，内存数量用上限控制。</td>
+          </tr>
+          <tr>
+            <td>货架 / Data tag 大名单</td>
+            <td>大</td>
+            <td>中低</td>
+            <td>Redis Roaring Bitmap</td>
+            <td>精准匹配，查询快，pod 重启不用重新加载全量名单。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="split">
+      <h2>64 位 user_id 怎么拆</h2>
+      <p class="muted">当前方案用 <code>LowBitNum=24</code>：高 40 位做分桶，低 24 位放进桶内容器。</p>
+      <div class="split">
+        <div>
+          <div class="bits">
+            <div class="bit-part high">
+              <h3>highKey</h3>
+              <p>高 40 位：决定落在哪个 Redis 二级 key。</p>
+            </div>
+            <div class="bit-part low">
+              <h3>lowValue</h3>
+              <p>低 24 位：决定桶内 offset。</p>
+            </div>
+          </div>
+          <p class="muted">公式：<code>highKey = user_id &gt;&gt; 24</code>，<code>lowValue = user_id &amp; 0xFFFFFF</code></p>
+          <div class="calc">
+            <input id="userIdInput" inputmode="numeric" value="9000000001" aria-label="user id">
+            <button type="button" id="calcBtn">计算</button>
+          </div>
+          <div class="calc-result">
+            <div class="result-box">
+              <span class="muted">highKey</span>
+              <code id="highOut">536</code>
+            </div>
+            <div class="result-box">
+              <span class="muted">lowValue</span>
+              <code id="lowOut">9934593</code>
+            </div>
+          </div>
+        </div>
+        <div class="chart-box">
+          <svg viewBox="0 0 720 320" role="img" aria-label="high low split comparison chart">
+            <rect x="0" y="0" width="720" height="320" fill="#fff"/>
+            <text x="28" y="34" font-size="18" fill="#17202a">40 / 24 拆分的取舍</text>
+            <text x="28" y="62" font-size="13" fill="#65717f">低位越大，单 key 更大；低位越小，key 数更多。</text>
+            <g transform="translate(48,92)">
+              <text x="0" y="0" font-size="13" fill="#65717f">38 / 26</text>
+              <rect x="90" y="-16" width="130" height="24" fill="#6d4aff"/>
+              <rect x="230" y="-16" width="250" height="24" fill="#0f766e"/>
+              <text x="492" y="2" font-size="13" fill="#17202a">256 keys, 8M/container</text>
+            </g>
+            <g transform="translate(48,152)">
+              <text x="0" y="0" font-size="13" fill="#65717f">39 / 25</text>
+              <rect x="90" y="-16" width="170" height="24" fill="#6d4aff"/>
+              <rect x="270" y="-16" width="190" height="24" fill="#0f766e"/>
+              <text x="492" y="2" font-size="13" fill="#17202a">512 keys, 4M/container</text>
+            </g>
+            <g transform="translate(48,212)">
+              <text x="0" y="0" font-size="13" fill="#65717f">40 / 24</text>
+              <rect x="90" y="-16" width="220" height="24" fill="#6d4aff"/>
+              <rect x="320" y="-16" width="120" height="24" fill="#0f766e"/>
+              <text x="492" y="2" font-size="13" fill="#17202a">1024 keys, 2M/container</text>
+            </g>
+            <g transform="translate(48,276)">
+              <rect x="0" y="-10" width="10" height="10" fill="#6d4aff"/>
+              <text x="16" y="0" font-size="13" fill="#65717f">highKey key 数</text>
+              <rect x="132" y="-10" width="10" height="10" fill="#0f766e"/>
+              <text x="148" y="0" font-size="13" fill="#65717f">low 容器大小</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section id="redis">
+      <h2>Redis 二级结构</h2>
+      <p class="muted">查询先读 meta hash。meta 告诉你这个 highKey 应该用 Set、Bitmap 还是 Run。</p>
+      <div class="redis-graph">
+        <div class="redis-box meta">
+          <h3>Group Meta Hash</h3>
+          <p><code>highKey -> containerType</code></p>
+          <p class="muted">例如：<code>536 -> 2</code></p>
+        </div>
+        <div class="redis-box set">
+          <h3>ArrayContainer</h3>
+          <p><code>Redis Set</code></p>
+          <p class="muted">稀疏段：用 <code>SISMEMBER</code> 查 lowValue。</p>
+        </div>
+        <div class="redis-box bitmap">
+          <h3>BitmapContainer</h3>
+          <p><code>Redis String bitmap</code></p>
+          <p class="muted">密集段：用 <code>GETBIT</code> 查 offset。</p>
+        </div>
+      </div>
+      <div class="redis-graph">
+        <div class="redis-box run">
+          <h3>RunContainer</h3>
+          <p>只记 meta</p>
+          <p class="muted">满段：highKey 存在且类型为 3，直接命中。</p>
+        </div>
+        <div class="redis-box">
+          <h3>空分组 marker</h3>
+          <p><code>__empty_group__ = RunContainer</code></p>
+          <p class="muted">表达缓存已初始化但无成员；正常查询不会误命中。</p>
+        </div>
+        <div class="redis-box">
+          <h3>RemoteLocalCache</h3>
+          <p><code>MarshalBinary()</code></p>
+          <p class="muted">标准 roaring64.Bitmap 序列化后写 Redis，其他服务拉到本地。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="flow">
+      <h2>写入链路和查询链路</h2>
+      <div class="flow" id="flowStages">
+        <button class="stage active" type="button" data-title="1. Data / S3 产出名单" data-detail="Data Group 或 Insurance S3 保存原始 user_id 文件。Marketing 不在在线链路扫这些文件，而是提前缓存。">
+          <strong>Data / S3</strong>
+          <span class="muted">名单来源</span>
+        </button>
+        <button class="stage" type="button" data-title="2. Group Center 解析文件" data-detail="按行读取 CSV，解析 user_id。第一条非空非法记录可以作为表头跳过，后续非法记录计入 invalidCount。">
+          <strong>解析 CSV</strong>
+          <span class="muted">转 user_id</span>
+        </button>
+        <button class="stage" type="button" data-title="3. 构建 high / low 容器" data-detail="user_id 拆成 highKey 和 lowValue。稀疏段保留 ArrayContainer，超过阈值转 BitmapContainer，满段用 RunContainer 表达。">
+          <strong>构建容器</strong>
+          <span class="muted">high / low</span>
+        </button>
+        <button class="stage" type="button" data-title="4. 批量写 Redis" data-detail="先写二级容器，再写 group meta hash。highKey 每 100 个容器批量写一次，降低 Redis 写入批次和峰值。">
+          <strong>写 Redis</strong>
+          <span class="muted">container + meta</span>
+        </button>
+        <button class="stage" type="button" data-title="5. 在线查询" data-detail="Plan 执行时只做 membership check：HGET meta 拿容器类型，再 SISMEMBER / GETBIT / RunContainer 判断。">
+          <strong>在线查询</strong>
+          <span class="muted">快速判断</span>
+        </button>
+        <button class="stage" type="button" data-title="6. 生命周期治理" data-detail="Data URL 变化重建、Redis key 缺失补建、完整性检查、手动刷新、last_access_time、Delete Checker 共同保证可维护。">
+          <strong>治理</strong>
+          <span class="muted">刷新和巡检</span>
+        </button>
+      </div>
+      <div class="detail" id="flowDetail">
+        <h3>1. Data / S3 产出名单</h3>
+        <p class="muted">Data Group 或 Insurance S3 保存原始 user_id 文件。Marketing 不在在线链路扫这些文件，而是提前缓存。</p>
+      </div>
+
+      <div class="query-path">
+        <div class="query-step">
+          <h3>HGET meta</h3>
+          <p class="muted">用 <code>group_id + highKey</code> 找容器类型。</p>
+        </div>
+        <div class="query-step">
+          <h3>Set</h3>
+          <p class="muted">类型 1：<code>SISMEMBER lowValue</code></p>
+        </div>
+        <div class="query-step">
+          <h3>Bitmap</h3>
+          <p class="muted">类型 2：<code>GETBIT lowValue</code></p>
+        </div>
+        <div class="query-step">
+          <h3>Run</h3>
+          <p class="muted">类型 3：不查二级 key，直接返回 true。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="charts">
+      <h2>测试样本图表</h2>
+      <p class="muted">这些来自 Confluence 设计验证样本，适合说成“设计验证数据”，不要包装成线上长期收益。</p>
+      <div class="chart-box">
+        <svg viewBox="0 0 920 360" role="img" aria-label="memory comparison chart">
+          <rect width="920" height="360" fill="#fff"/>
+          <text x="28" y="34" font-size="18" fill="#17202a">100 万 / 1000 万用户量级内存对比</text>
+          <text x="28" y="60" font-size="13" fill="#65717f">单位：MB。Roaring Bitmap 是本地缓存样本。</text>
+          <line x1="78" y1="300" x2="870" y2="300" stroke="#d8dee8"/>
+          <line x1="78" y1="80" x2="78" y2="300" stroke="#d8dee8"/>
+          <text x="48" y="304" font-size="12" fill="#65717f">0</text>
+          <text x="42" y="236" font-size="12" fill="#65717f">20</text>
+          <text x="42" y="168" font-size="12" fill="#65717f">40</text>
+          <text x="42" y="100" font-size="12" fill="#65717f">60</text>
+          <g transform="translate(145,0)">
+            <text x="0" y="326" font-size="13" fill="#17202a">100 万</text>
+            <rect x="10" y="181" width="45" height="119" fill="#b42318"/>
+            <rect x="65" y="96" width="45" height="204" fill="#a15c00"/>
+            <rect x="120" y="292" width="45" height="8" fill="#177245"/>
+            <text x="14" y="174" font-size="12" fill="#17202a">35</text>
+            <text x="69" y="89" font-size="12" fill="#17202a">60</text>
+            <text x="121" y="285" font-size="12" fill="#17202a">2.24</text>
+          </g>
+          <g transform="translate(500,0)">
+            <text x="0" y="326" font-size="13" fill="#17202a">1000 万</text>
+            <rect x="10" y="79" width="45" height="221" fill="#b42318"/>
+            <rect x="65" y="96" width="45" height="204" fill="#a15c00"/>
+            <rect x="120" y="231" width="45" height="69" fill="#177245"/>
+            <text x="14" y="72" font-size="12" fill="#17202a">65</text>
+            <text x="69" y="89" font-size="12" fill="#17202a">60</text>
+            <text x="121" y="224" font-size="12" fill="#17202a">20.2</text>
+          </g>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="dot red"></i>本地 Bloom Filter</span>
+        <span><i class="dot amber"></i>Redis 类 Bloom bitmap</span>
+        <span><i class="dot green"></i>本地 Roaring Bitmap</span>
+      </div>
+
+      <div class="chart-box">
+        <svg viewBox="0 0 920 330" role="img" aria-label="redis init sample chart">
+          <rect width="920" height="330" fill="#fff"/>
+          <text x="28" y="34" font-size="18" fill="#17202a">Redis Roaring 初始化样本</text>
+          <text x="28" y="60" font-size="13" fill="#65717f">左轴：总耗时秒。标签显示 Redis 内存预估。</text>
+          <line x1="78" y1="280" x2="870" y2="280" stroke="#d8dee8"/>
+          <line x1="78" y1="80" x2="78" y2="280" stroke="#d8dee8"/>
+          <g transform="translate(130,0)">
+            <text x="0" y="304" font-size="12" fill="#17202a">246 万 test</text>
+            <rect x="20" y="228" width="64" height="52" fill="#2563eb"/>
+            <text x="22" y="220" font-size="12" fill="#17202a">8s / 64MB</text>
+          </g>
+          <g transform="translate(330,0)">
+            <text x="0" y="304" font-size="12" fill="#17202a">1000 万 live A</text>
+            <rect x="30" y="124" width="64" height="156" fill="#177245"/>
+            <text x="16" y="116" font-size="12" fill="#17202a">24s / 16MB</text>
+          </g>
+          <g transform="translate(535,0)">
+            <text x="0" y="304" font-size="12" fill="#17202a">1000 万 live B</text>
+            <rect x="30" y="118" width="64" height="162" fill="#0f766e"/>
+            <text x="16" y="110" font-size="12" fill="#17202a">25s / 22MB</text>
+          </g>
+          <g transform="translate(740,0)">
+            <text x="-8" y="304" font-size="12" fill="#17202a">999 万随机</text>
+            <rect x="20" y="79" width="64" height="201" fill="#a15c00"/>
+            <text x="-2" y="71" font-size="12" fill="#17202a">31s / 319MB</text>
+          </g>
+        </svg>
+      </div>
+      <p class="muted" style="margin-top:10px;">随机数据样本内存更高，说明 Roaring/分段结构的收益和数据分布有关，不能说“任何数据都更省”。</p>
+    </section>
+
+    <section id="lifecycle">
+      <h2>缓存生命周期和排查图</h2>
+      <div class="timeline">
+        <div class="state">
+          <h3>Created</h3>
+          <p class="muted">创建 group，保存元信息。</p>
+        </div>
+        <div class="state">
+          <h3>Processing</h3>
+          <p class="muted">等待 Data ready，构建缓存。</p>
+        </div>
+        <div class="state">
+          <h3>Ready</h3>
+          <p class="muted">Redis key 存在，ApproveStatus done。</p>
+        </div>
+        <div class="state">
+          <h3>Refreshing</h3>
+          <p class="muted">Data URL 变化或手动刷新。</p>
+        </div>
+        <div class="state">
+          <h3>Failed</h3>
+          <p class="muted">写入失败、文件异常、告警。</p>
+        </div>
+        <div class="state">
+          <h3>Deleted</h3>
+          <p class="muted">MySQL 软删，清 Redis，保留 S3。</p>
+        </div>
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>现象</th>
+            <th>优先检查</th>
+            <th>可能原因</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>本该命中但未命中</td>
+            <td>meta 是否有 highKey；二级 key 是否存在；类型是否匹配。</td>
+            <td>Redis key 缺失、Data 未更新、缓存旧版本。</td>
+          </tr>
+          <tr>
+            <td>不该命中但命中</td>
+            <td>Data 源名单、group 配置、RunContainer 标记。</td>
+            <td>源数据错误、选错 group、缓存未刷新。</td>
+          </tr>
+          <tr>
+            <td>Group 一直 processing</td>
+            <td>Data ready、NewDownloadUrl、Redis 写入日志。</td>
+            <td>Data 文件未产出、Redis 写失败、空文件异常。</td>
+          </tr>
+          <tr>
+            <td>Redis 内存增长</td>
+            <td>旧 group、旧 key、cleanup、group 数量。</td>
+            <td>TTL=0 后依赖删除/刷新清理，治理没跟上会堆积。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="answer">
+      <h2>面试口述卡片</h2>
+      <div class="tabs" role="group" aria-label="answer length">
+        <button class="tab active" type="button" data-answer="short">30 秒</button>
+        <button class="tab" type="button" data-answer="mid">2 分钟</button>
+        <button class="tab" type="button" data-answer="long">5 分钟</button>
+      </div>
+      <div class="answer" id="answerBox">
+        <h3>30 秒版本</h3>
+        <p>Marketing 用户组匹配本质是判断 user_id 是否在某个名单集合里。旧 Bloom/bitmap 方案要么有误判，要么固定占用内存高。我们用 Roaring Bitmap 思路优化：本地高 QPS 场景用 roaring64.Bitmap，其他大名单用客户端改造的 Redis Roaring Bitmap。Redis 里按高 40 位、低 24 位拆分，稀疏用 Set，密集用 Bitmap，满段用 RunContainer，做到精准匹配且内存更可控。</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const flowStages = document.querySelectorAll(".stage");
+    const flowDetail = document.getElementById("flowDetail");
+    flowStages.forEach((stage) => {
+      stage.addEventListener("click", () => {
+        flowStages.forEach((item) => item.classList.remove("active"));
+        stage.classList.add("active");
+        flowDetail.innerHTML = "<h3>" + stage.dataset.title + "</h3><p class=\"muted\">" + stage.dataset.detail + "</p>";
+      });
+    });
+
+    const input = document.getElementById("userIdInput");
+    const highOut = document.getElementById("highOut");
+    const lowOut = document.getElementById("lowOut");
+    const calcBtn = document.getElementById("calcBtn");
+
+    function calcUserId() {
+      const raw = input.value.trim();
+      if (!/^[0-9]+$/.test(raw)) {
+        highOut.textContent = "请输入正整数";
+        lowOut.textContent = "请输入正整数";
+        return;
+      }
+      const value = BigInt(raw);
+      const high = value >> 24n;
+      const low = value & 0xFFFFFFn;
+      highOut.textContent = high.toString();
+      lowOut.textContent = low.toString();
+    }
+
+    calcBtn.addEventListener("click", calcUserId);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        calcUserId();
+      }
+    });
+    calcUserId();
+
+    const answers = {
+      short: {
+        title: "30 秒版本",
+        text: "Marketing 用户组匹配本质是判断 user_id 是否在某个名单集合里。旧 Bloom/bitmap 方案要么有误判，要么固定占用内存高。我们用 Roaring Bitmap 思路优化：本地高 QPS 场景用 roaring64.Bitmap，其他大名单用客户端改造的 Redis Roaring Bitmap。Redis 里按高 40 位、低 24 位拆分，稀疏用 Set，密集用 Bitmap，满段用 RunContainer，做到精准匹配且内存更可控。"
+      },
+      mid: {
+        title: "2 分钟版本",
+        text: "这个优化的背景是 Marketing 触达前要判断用户是否属于目标人群。原来的本地 Bloom Filter 和 Redis 类 Bloom bitmap 都是近似匹配，会有误判；而 Redis 固定 bitmap 对小容量用户组也要占固定空间。我们选了 Roaring Bitmap 思路，因为 user_id 是整数集合，Roaring 可以按分段选择不同容器，实现精准 membership check。落地上，我们没有引入 Redis 插件，而是在客户端把 64 位 user_id 拆成 highKey 和 lowValue。Meta Hash 存 highKey 到容器类型的映射；如果容器是 ArrayContainer，就在 Redis Set 里查 lowValue；如果是 BitmapContainer，就用 GETBIT；如果是 RunContainer，就直接认为该 highKey 段命中。缓存构建由 Data Group / S3 文件异步完成，在线执行只做快速查询。"
+      },
+      long: {
+        title: "5 分钟版本",
+        text: "我会分四层讲。第一层是业务问题：Marketing 的 Plan 执行前需要做用户组匹配，这个匹配必须快，而且在很多触达场景不能误判。第二层是选型：小数据低并发可以 MySQL，高并发 mepage 用本地 Roaring Bitmap 减少 Redis 压力，大名单精准匹配用 Redis Roaring Bitmap。第三层是落地：按 40/24 拆分 user_id，highKey 用作分桶，lowValue 存到对应容器。容器按数据密度选择：稀疏段用 Set，密集段用 Bitmap，满段用 RunContainer。查询时先 HGET meta 拿容器类型，再用 SISMEMBER 或 GETBIT 判断。第四层是工程治理：Data URL 变更触发重建，Redis key 缺失可以定时补建，完整性检查会校验 meta 和二级 key，空分组用 marker 表示已经初始化但无成员，删除 group 前通过 checker 防止删除仍被活动引用的分组。"
+      }
+    };
+
+    const tabs = document.querySelectorAll(".tab");
+    const answerBox = document.getElementById("answerBox");
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        tabs.forEach((item) => item.classList.remove("active"));
+        tab.classList.add("active");
+        const answer = answers[tab.dataset.answer];
+        answerBox.innerHTML = "<h3>" + answer.title + "</h3><p>" + answer.text + "</p>";
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,5 +1,7 @@
 # M1-03 InnoDB 和 MyISAM 有什么本质区别？为什么 InnoDB 成为默认引擎？
 
+
+可视化页面：[m1-03-innodb-vs-myisam.html](m1-03-innodb-vs-myisam.html)
 分类：基础架构与存储引擎
 
 难度：L2/L3

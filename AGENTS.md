@@ -104,6 +104,7 @@ Use templates when applicable:
 - `templates/interview-note.md` for interview notes or retrospectives.
 - `templates/jd-resume-match.md` for JD and resume alignment.
 - `templates/project-story-star.md` for project experience stories.
+- `templates/visual-explainer.html` for interactive HTML explanations when the user says a concept is hard to understand.
 
 ## Quality Rules
 
@@ -115,6 +116,27 @@ Use templates when applicable:
 - Keep Markdown clean and easy to review.
 - Do not assume the user already understands jargon. Define terms like `索引`, `事务`, `锁`, `Buffer Pool`, `MVCC`, `redo log`, and `binlog` when first used in a note.
 - For hard concepts, use a three-layer structure: `先讲人话` -> `再讲原理` -> `面试怎么说`.
+
+## HTML Visual Explanation Rules
+
+When the user says they do not understand a note, concept, or interview question, or asks for a visual explanation:
+
+1. Create a standalone static HTML page next to the most relevant Markdown note.
+2. Use the same base filename as the Markdown note, ending in `.html`.
+3. Add a link from the Markdown note to the HTML page near the top.
+4. Prefer visual and interactive explanations over long prose:
+   - structure diagram
+   - step-by-step flow
+   - clickable regions
+   - sliders or small calculators when numbers are involved
+   - comparison cards or tables
+   - a final 1-2 minute interview answer
+5. Keep the language Chinese-first, preserve important English technical terms.
+6. The HTML must be self-contained: inline CSS and JavaScript, no external CDN required.
+7. Make it openable directly from the filesystem. If browser verification needs a local server, use it only temporarily and stop it afterward.
+8. Keep claims conservative and consistent with the Markdown note. Mark missing project-specific details as `待补充`.
+9. For existing notes, read nearby files first and follow the local style before generating the HTML.
+10. Do not create an HTML page for every note automatically; create one when the user asks, says they are confused, or the concept is visually hard.
 
 ## When Updating Existing Notes
 
@@ -129,3 +151,4 @@ Use templates when applicable:
 - If the user asks for standard answers, provide polished answers directly.
 - If the user asks for interview simulation, act as the interviewer first, then give feedback after the answer.
 - If the user asks for resume alignment with a JD, map JD requirements to resume evidence and identify gaps.
+- If the user says “不懂”, “没理解”, “看不懂”, or asks for visualization, generate a corresponding HTML explainer for the most relevant note when practical.

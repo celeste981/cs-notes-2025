@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>分库扩容迁移案例可视化</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --paper: #ffffff;
+      --ink: #17202a;
+      --muted: #65717f;
+      --line: #d9dee7;
+      --blue: #2f6fdf;
+      --blue-soft: #e8f0ff;
+      --green: #17845b;
+      --green-soft: #e7f6ee;
+      --amber: #b86b00;
+      --amber-soft: #fff3da;
+      --red: #c3423f;
+      --red-soft: #fdebea;
+      --violet: #6956c2;
+      --violet-soft: #f0edff;
+      --radius: 8px;
+      --shadow: 0 16px 36px rgba(23, 32, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.65;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+
+    .header-inner,
+    main {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 14px 20px;
+    }
+
+    .header-inner {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 22px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin-bottom: 8px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+      letter-spacing: 0;
+    }
+
+    .eyebrow,
+    .muted {
+      color: var(--muted);
+    }
+
+    .nav {
+      display: flex;
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f9fafc;
+      white-space: nowrap;
+    }
+
+    .nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      padding: 6px 10px;
+      border-radius: 6px;
+    }
+
+    .nav a:hover {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    main {
+      padding-top: 22px;
+      padding-bottom: 48px;
+    }
+
+    section {
+      margin-top: 18px;
+      padding: 22px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    section:first-child {
+      margin-top: 0;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.95fr);
+      gap: 18px;
+    }
+
+    .box {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .card {
+      min-height: 112px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .card strong {
+      color: var(--blue);
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .stage {
+      min-height: 116px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .stage.fail {
+      background: var(--red-soft);
+      border-color: #e9b5b2;
+    }
+
+    .map-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 330px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .map-board {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .mapping {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .shard {
+      min-height: 98px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .shard.good {
+      background: var(--green-soft);
+      border-color: #9bd5bc;
+    }
+
+    .shard.risky {
+      background: var(--red-soft);
+      border-color: #e9b5b2;
+    }
+
+    .scenario {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .btn {
+      min-height: 38px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .btn.primary,
+    .btn.active {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f2f4f8;
+    }
+
+    .risk-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .risk {
+      min-height: 150px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .risk strong {
+      color: var(--red);
+    }
+
+    .answer {
+      padding: 16px;
+      border: 1px solid #a8c6ff;
+      border-radius: var(--radius);
+      background: var(--blue-soft);
+    }
+
+    code {
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: #eef1f5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    @media (max-width: 960px) {
+      .header-inner,
+      .hero,
+      .map-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        overflow-x: auto;
+      }
+
+      .cards,
+      .timeline,
+      .risk-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .header-inner,
+      main {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      section {
+        padding: 16px;
+      }
+
+      .cards,
+      .timeline,
+      .mapping,
+      .risk-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div>
+        <p class="eyebrow">MySQL 面试可视化 · 分库分表 L3/L4</p>
+        <h1>分库扩容迁移：流程、风险和数据覆盖坑</h1>
+      </div>
+      <nav class="nav" aria-label="页面导航">
+        <a href="#timeline">迁移流程</a>
+        <a href="#mapping">分片映射</a>
+        <a href="#risks">风险点</a>
+        <a href="#answer">面试说法</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="hero">
+        <div class="box">
+          <h2>先抓住一句话</h2>
+          <p>
+            分库扩容不是“把数据搬过去”这么简单。真正要保证的是：迁移期间业务还在写，旧库和新库最终必须一致；同时要确认分片键、同步唯一键、目标分片数都设计正确，否则可能出现数据覆盖。
+          </p>
+          <div class="cards">
+            <div class="card"><strong>分片键</strong><p class="muted">决定数据路由到哪个库。</p></div>
+            <div class="card"><strong>同步唯一键</strong><p class="muted">决定迁移工具认为哪两行是同一行。</p></div>
+            <div class="card"><strong>倍数扩容</strong><p class="muted">旧分片到新分片映射更可控。</p></div>
+          </div>
+        </div>
+        <div class="box">
+          <h2>这个案例的核心坑</h2>
+          <p class="muted">
+            旧库每个分片都有本地自增 <code>id</code>，不同库都可能有 <code>id = 100</code>。如果非倍数扩容后这些数据进入同一个新库，而同步工具又只用 <code>id</code> 判断唯一，就会把不同业务数据误认为同一行，发生覆盖。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="timeline">
+      <h2>1. 标准分库扩容流程</h2>
+      <div class="timeline">
+        <div class="stage"><h3>1. 评估</h3><p class="muted">容量、QPS、连接数、单分片大小、热点。</p></div>
+        <div class="stage"><h3>2. 设计</h3><p class="muted">新分片数、分片键、唯一键、回滚方案。</p></div>
+        <div class="stage"><h3>3. 建库</h3><p class="muted">创建目标库表和配置路由。</p></div>
+        <div class="stage"><h3>4. 全量</h3><p class="muted">把历史数据整体同步到新库。</p></div>
+        <div class="stage"><h3>5. 增量</h3><p class="muted">通过 binlog 追平迁移期间新增写入。</p></div>
+        <div class="stage fail"><h3>6. 校验</h3><p class="muted">行数、checksum、业务主键抽样；不通过不能切流。</p></div>
+      </div>
+    </section>
+
+    <section id="mapping">
+      <h2>2. 为什么倍数扩容更可控</h2>
+      <div class="map-layout">
+        <div class="map-board">
+          <h3 id="mapTitle">8 -> 24：倍数扩容</h3>
+          <p id="mapText" class="muted"></p>
+          <div class="mapping" id="mapping"></div>
+        </div>
+        <aside class="scenario">
+          <h3>切换场景</h3>
+          <p class="muted">看旧分片数据会不会混到同一个目标分片组里。</p>
+          <div class="actions">
+            <button class="btn primary" type="button" data-case="multiple">8 -> 24</button>
+            <button class="btn" type="button" data-case="nonMultiple">8 -> 20</button>
+            <button class="btn" type="button" data-case="collision">id 覆盖</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="risks">
+      <h2>3. 扩容前必须审的风险点</h2>
+      <div class="risk-grid">
+        <div class="risk">
+          <h3><strong>风险 1：</strong>自增 id 不是全局唯一</h3>
+          <p class="muted">分库后每个库都可能从 1 开始自增，不能默认拿它做跨库唯一判断。</p>
+        </div>
+        <div class="risk">
+          <h3><strong>风险 2：</strong>分片键和唯一键混淆</h3>
+          <p class="muted">分片键负责路由，同步唯一键负责判断同一行，两个概念不能混用。</p>
+        </div>
+        <div class="risk">
+          <h3><strong>风险 3：</strong>校验没过就切流</h3>
+          <p class="muted">校验阶段发现差异要停止切流，清理错误数据，修正方案后重跑。</p>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>检查项</th>
+            <th>为什么重要</th>
+            <th>结果不安全时怎么办</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>每张表的分片键</td>
+            <td>决定数据落库是否均匀、查询是否方便。</td>
+            <td>重新评估路由规则或拆分迁移范围。</td>
+          </tr>
+          <tr>
+            <td>每张表的全局唯一键</td>
+            <td>决定同步工具能否正确 upsert 和去重。</td>
+            <td>改同步配置，或调整表结构和迁移方案。</td>
+          </tr>
+          <tr>
+            <td>新旧分片数关系</td>
+            <td>非倍数扩容更容易让不同旧分片混合。</td>
+            <td>优先倍数扩容，或做更严格的唯一键保障。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="answer">
+      <h2>4. 面试 1 分钟说法</h2>
+      <div class="answer">
+        <p>
+          我参与过一次分库扩容迁移问题处理。标准流程是先评估容量和流量，再设计新分片数和分片键，创建目标库后做全量同步，迁移期间通过 binlog 做增量同步，追平后做数据校验，最后才灰度切流。我们遇到的坑是同步工具默认用 MySQL 自增主键 <code>id</code> 判断唯一，但这个 id 只是单库内唯一，不是全局唯一。旧库 8 个分片里不同库都可能有相同 id，非倍数扩容后这些数据可能进入同一个目标库，工具只看 id 就会发生覆盖。这个问题在校验阶段发现后，我们没有切流，而是清理错误新库数据，调整分片方案并补齐分片，重新同步和校验。复盘经验是：扩容前必须审每张表的分片键和全局唯一键，不能默认本地自增 id 可以跨库唯一。
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const cases = {
+      multiple: {
+        title: "8 -> 24：倍数扩容",
+        text: "24 = 8 * 3。旧库 0 的数据只会去新库 0、8、16；旧库 1 只会去 1、9、17。不同旧库不会混到同一组新库里，迁移映射更可控。",
+        shards: [
+          ["旧 0", "新 0 / 8 / 16", "good"],
+          ["旧 1", "新 1 / 9 / 17", "good"],
+          ["旧 2", "新 2 / 10 / 18", "good"],
+          ["旧 3", "新 3 / 11 / 19", "good"],
+          ["旧 4", "新 4 / 12 / 20", "good"],
+          ["旧 5", "新 5 / 13 / 21", "good"],
+          ["旧 6", "新 6 / 14 / 22", "good"],
+          ["旧 7", "新 7 / 15 / 23", "good"]
+        ]
+      },
+      nonMultiple: {
+        title: "8 -> 20：非倍数扩容",
+        text: "20 不是 8 的倍数。不同旧库的数据可能被重新打散后进入同一个新库，映射关系更复杂。",
+        shards: [
+          ["hash 24", "旧 0 -> 新 4", "risky"],
+          ["hash 4", "旧 4 -> 新 4", "risky"],
+          ["hash 25", "旧 1 -> 新 5", "risky"],
+          ["hash 5", "旧 5 -> 新 5", "risky"],
+          ["结论", "不同旧库可能混入同一新库", "risky"],
+          ["要求", "必须依赖真正全局唯一键", "risky"],
+          ["风险", "本地 id 相同会覆盖", "risky"],
+          ["处理", "改方案或重配同步唯一键", "risky"]
+        ]
+      },
+      collision: {
+        title: "id 覆盖：为什么会丢数据",
+        text: "旧库 0、旧库 1、旧库 2 都可能有 id=100。它们本来是不同业务数据，但进入同一个新库后，同步工具只看 id，就可能后写覆盖先写。",
+        shards: [
+          ["旧库 0", "id=100, policy=A", "risky"],
+          ["旧库 1", "id=100, policy=B", "risky"],
+          ["旧库 2", "id=100, policy=C", "risky"],
+          ["新库 X", "只剩最后写入的一条", "risky"],
+          ["错因", "用本地 id 做全局唯一", "risky"],
+          ["发现", "数据校验不一致", "risky"],
+          ["止损", "不切流，清理新库", "risky"],
+          ["修复", "调整方案后重跑", "risky"]
+        ]
+      }
+    };
+
+    const mapping = document.getElementById("mapping");
+    const mapTitle = document.getElementById("mapTitle");
+    const mapText = document.getElementById("mapText");
+    const buttons = Array.from(document.querySelectorAll("[data-case]"));
+
+    function renderCase(name) {
+      const item = cases[name];
+      mapTitle.textContent = item.title;
+      mapText.textContent = item.text;
+      mapping.innerHTML = item.shards.map(([from, to, cls]) => `
+        <div class="shard ${cls}">
+          <h3>${from}</h3>
+          <p class="muted">${to}</p>
+        </div>
+      `).join("");
+      buttons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.case === name);
+        button.classList.toggle("primary", button.dataset.case === name);
+      });
+    }
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => renderCase(button.dataset.case));
+    });
+
+    renderCase("multiple");
+  </script>
+</body>
+</html>

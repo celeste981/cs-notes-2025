@@ -12,6 +12,8 @@
 
 复习状态：已成稿
 
+可视化页面：[m1-04-buffer-pool-lru.html](m1-04-buffer-pool-lru.html)
+
 ## 问题
 
 Buffer Pool 的工作原理是什么？为什么 InnoDB 不用简单的 LRU，而要使用改进版本？

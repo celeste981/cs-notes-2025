@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Buffer Pool 与改进 LRU 可视化</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --paper: #ffffff;
+      --ink: #17202a;
+      --muted: #65717f;
+      --line: #d9dee7;
+      --blue: #2f6fdf;
+      --blue-soft: #e8f0ff;
+      --green: #17845b;
+      --green-soft: #e7f6ee;
+      --amber: #b86b00;
+      --amber-soft: #fff3da;
+      --red: #c3423f;
+      --red-soft: #fdebea;
+      --radius: 8px;
+      --shadow: 0 16px 36px rgba(23, 32, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.65;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+
+    .header-inner,
+    main {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 14px 20px;
+    }
+
+    .header-inner {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 22px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin-bottom: 8px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+      letter-spacing: 0;
+    }
+
+    .eyebrow,
+    .muted {
+      color: var(--muted);
+    }
+
+    .nav {
+      display: flex;
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f9fafc;
+      white-space: nowrap;
+    }
+
+    .nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      padding: 6px 10px;
+      border-radius: 6px;
+    }
+
+    .nav a:hover {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    main {
+      padding-top: 22px;
+      padding-bottom: 48px;
+    }
+
+    section {
+      margin-top: 18px;
+      padding: 22px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    section:first-child {
+      margin-top: 0;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.95fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .box {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .card {
+      min-height: 112px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .card strong {
+      color: var(--blue);
+    }
+
+    .path {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .path-step {
+      min-height: 96px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .path-step.hit {
+      background: var(--green-soft);
+      border-color: #9bd5bc;
+    }
+
+    .lru-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 330px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .lru-board {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .lru-list {
+      display: grid;
+      grid-template-columns: 5fr 3fr;
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .zone {
+      min-height: 220px;
+      padding: 12px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .zone.young {
+      border-color: #8cb2ff;
+      background: var(--blue-soft);
+    }
+
+    .zone.old {
+      border-color: #e5b666;
+      background: var(--amber-soft);
+    }
+
+    .pages {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(40px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .page {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(23, 32, 42, 0.18);
+      border-radius: 6px;
+      background: #fff;
+      font-weight: 700;
+    }
+
+    .page.hot {
+      background: var(--green-soft);
+      color: var(--green);
+      border-color: #9bd5bc;
+    }
+
+    .page.cold {
+      background: #fff8e8;
+      color: var(--amber);
+      border-color: #e5b666;
+    }
+
+    .page.evicted {
+      background: var(--red-soft);
+      color: var(--red);
+      border-color: #e9b5b2;
+    }
+
+    .scenario {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .btn {
+      min-height: 38px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .btn.primary,
+    .btn.active {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .list-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .list-card {
+      min-height: 148px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f2f4f8;
+    }
+
+    .answer {
+      padding: 16px;
+      border: 1px solid #a8c6ff;
+      border-radius: var(--radius);
+      background: var(--blue-soft);
+    }
+
+    code {
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: #eef1f5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    @media (max-width: 920px) {
+      .header-inner,
+      .hero,
+      .lru-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        overflow-x: auto;
+      }
+
+      .cards,
+      .path,
+      .list-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .header-inner,
+      main {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      section {
+        padding: 16px;
+      }
+
+      .cards,
+      .path,
+      .list-grid,
+      .lru-list {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div>
+        <p class="eyebrow">MySQL 面试可视化 · 基础架构与存储引擎</p>
+        <h1>Buffer Pool 的工作原理与改进 LRU</h1>
+      </div>
+      <nav class="nav" aria-label="页面导航">
+        <a href="#path">读写路径</a>
+        <a href="#lru">改进 LRU</a>
+        <a href="#lists">三类链表</a>
+        <a href="#answer">面试说法</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="hero">
+        <div class="box">
+          <h2>先抓住一句话</h2>
+          <p>
+            Buffer Pool 是 InnoDB 的数据页缓存。读数据先找内存，写数据也先改内存页，页变成脏页后再异步刷盘。改进 LRU 的目的，是防止全表扫描、预读页这类一次性冷数据把热点页挤出去。
+          </p>
+          <div class="cards">
+            <div class="card"><strong>缓存单位</strong><p class="muted">Page，不是单行。</p></div>
+            <div class="card"><strong>写入方式</strong><p class="muted">先改内存，后刷磁盘。</p></div>
+            <div class="card"><strong>LRU 改进</strong><p class="muted">new page 先进入 old 区。</p></div>
+          </div>
+        </div>
+        <div class="box">
+          <h2>为什么普通 LRU 不够</h2>
+          <p class="muted">
+            普通 LRU 会把刚访问的页放到最热位置。全表扫描时，大量只访问一次的历史页也会被当成热点，真正频繁访问的订单、用户、保单页反而被淘汰，这就是缓冲池污染。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="path">
+      <h2>1. 读写都会经过 Buffer Pool</h2>
+      <div class="path">
+        <div class="path-step"><h3>SQL 需要记录</h3><p class="muted">执行器调用 InnoDB。</p></div>
+        <div class="path-step hit"><h3>先查内存</h3><p class="muted">目标 Page 在 Buffer Pool 中就直接读。</p></div>
+        <div class="path-step"><h3>未命中</h3><p class="muted">从磁盘读取整个 Page。</p></div>
+        <div class="path-step"><h3>更新时</h3><p class="muted">修改 Buffer Pool 中的数据页。</p></div>
+        <div class="path-step"><h3>后台刷盘</h3><p class="muted">脏页后续由后台线程写回磁盘。</p></div>
+      </div>
+    </section>
+
+    <section id="lru">
+      <h2>2. 改进 LRU 怎么保护热点页</h2>
+      <div class="lru-layout">
+        <div class="lru-board">
+          <div class="lru-list">
+            <div class="zone young">
+              <h3>young 区：真正热点</h3>
+              <p class="muted">最近且多次访问的页更容易留在这里。</p>
+              <div class="pages" id="youngPages"></div>
+            </div>
+            <div class="zone old">
+              <h3>old 区：新页和冷页</h3>
+              <p class="muted">新读入页先放这里，避免直接污染热点区。</p>
+              <div class="pages" id="oldPages"></div>
+            </div>
+          </div>
+          <p class="muted">默认 old 区约 3/8，young 区约 5/8。新页插入 old 区头部，也就是 midpoint 附近。</p>
+        </div>
+        <aside class="scenario">
+          <h3 id="scenarioTitle">场景：正常热点查询</h3>
+          <p id="scenarioText" class="muted"></p>
+          <div class="actions">
+            <button class="btn primary" type="button" data-case="hot">热点查询</button>
+            <button class="btn" type="button" data-case="scan">全表扫描</button>
+            <button class="btn" type="button" data-case="promote">再次访问</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="lists">
+      <h2>3. Buffer Pool 里的三类链表</h2>
+      <div class="list-grid">
+        <div class="list-card">
+          <h3>Free List</h3>
+          <p class="muted">管理空闲页框。新 Page 读入时，优先从这里拿位置。</p>
+        </div>
+        <div class="list-card">
+          <h3>LRU List</h3>
+          <p class="muted">管理已缓存页的冷热，决定哪些页更该留下，哪些页可以淘汰。</p>
+        </div>
+        <div class="list-card">
+          <h3>Flush List</h3>
+          <p class="muted">管理脏页。后台刷盘和 checkpoint 会关注这里。</p>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>现象</th>
+            <th>原因</th>
+            <th>处理方向</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>全表扫描后核心接口变慢</td>
+            <td>冷页进入缓存，热点页被淘汰。</td>
+            <td>优化 SQL 和索引，减少大扫描。</td>
+          </tr>
+          <tr>
+            <td>重启后短时间查询慢</td>
+            <td>Buffer Pool 冷启动。</td>
+            <td>配置 Buffer Pool dump/load 预热。</td>
+          </tr>
+          <tr>
+            <td>脏页刷盘压力大</td>
+            <td>写入多，Flush List 积压。</td>
+            <td>看 redo、checkpoint、磁盘 I/O 和刷盘参数。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="answer">
+      <h2>4. 面试 1 分钟说法</h2>
+      <div class="answer">
+        <p>
+          Buffer Pool 是 InnoDB 的内存缓存，主要缓存数据页和索引页。InnoDB 按 Page 管理数据，默认 16KB，所以查询一行时通常会把整页读入 Buffer Pool。读数据先看 Buffer Pool，命中就直接读内存；未命中才读磁盘。更新也先改 Buffer Pool 中的数据页，页变成脏页后由后台线程异步刷盘。InnoDB 不用简单 LRU，是因为数据库里有预读和全表扫描，大量只访问一次的冷页会污染缓存。改进 LRU 把链表分成 young 区和 old 区，新读入页先进入 old 区，只有在 old 区停留超过 <code>innodb_old_blocks_time</code> 后又被访问，才晋升到 young 区。这样热点页更容易留在内存里。
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const cases = {
+      hot: {
+        title: "场景：正常热点查询",
+        text: "订单、用户、保单等近期热点页被反复访问，留在 young 区。",
+        young: ["P8", "P3", "P12", "P6", "P1", "P9", "P5", "P2"],
+        old: ["N1", "N2", "N3", "N4", "N5"],
+        youngClass: "hot",
+        oldClass: "cold"
+      },
+      scan: {
+        title: "场景：全表扫描",
+        text: "大量历史页被读入，但先进入 old 区，不会直接冲到 young 区头部。",
+        young: ["P8", "P3", "P12", "P6", "P1", "P9", "P5", "P2"],
+        old: ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"],
+        youngClass: "hot",
+        oldClass: "cold"
+      },
+      promote: {
+        title: "场景：old 区页面再次访问",
+        text: "某个页在 old 区停留超过 innodb_old_blocks_time 后再次访问，才晋升 young 区。",
+        young: ["S3", "P8", "P3", "P12", "P6", "P1", "P9", "P5"],
+        old: ["S4", "S5", "S6", "S7", "S8", "X1"],
+        youngClass: "hot",
+        oldClass: "cold"
+      }
+    };
+
+    const youngPages = document.getElementById("youngPages");
+    const oldPages = document.getElementById("oldPages");
+    const scenarioTitle = document.getElementById("scenarioTitle");
+    const scenarioText = document.getElementById("scenarioText");
+    const buttons = Array.from(document.querySelectorAll("[data-case]"));
+
+    function renderCase(name) {
+      const item = cases[name];
+      scenarioTitle.textContent = item.title;
+      scenarioText.textContent = item.text;
+      youngPages.innerHTML = item.young.map((page) => `<span class="page ${item.youngClass}">${page}</span>`).join("");
+      oldPages.innerHTML = item.old.map((page) => `<span class="page ${item.oldClass}">${page}</span>`).join("");
+      buttons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.case === name);
+        button.classList.toggle("primary", button.dataset.case === name);
+      });
+    }
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => renderCase(button.dataset.case));
+    });
+
+    renderCase("hot");
+  </script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>M5-02 WAL 机制</title>
+  <style>
+    :root{--bg:#f5f7fb;--paper:#fff;--ink:#17202a;--muted:#667085;--line:#d9e0ea;--blue:#2563eb;--blue-soft:#eaf1ff;--green:#0f7b63;--green-soft:#e7f6ee;--amber:#a86405;--amber-soft:#fff3da;--red:#b42318;--red-soft:#ffebe8;--violet:#6b4bbf;--violet-soft:#f1edff;--radius:8px}
+    *{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.65}header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.96);border-bottom:1px solid var(--line);backdrop-filter:blur(10px)}.inner,main{max-width:1180px;margin:0 auto;padding:16px 20px}h1,h2,h3,p{margin:0}h1{font-size:25px;line-height:1.25}h2{font-size:20px;margin-bottom:10px}h3{font-size:17px}.eyebrow,.muted{color:var(--muted)}nav{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}nav a{color:var(--blue);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:#fff}section{margin-top:18px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:18px}.hero{display:grid;grid-template-columns:1.3fr .7fr;gap:14px}.headline{font-size:18px}.memory{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.card{border:1px solid var(--line);border-radius:var(--radius);padding:14px;background:#fbfcff}.card strong{display:block;margin-bottom:6px}.map{display:flex;align-items:stretch;gap:8px;overflow-x:auto;padding:4px 0}.dot{min-width:130px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;padding:10px;text-align:center;position:relative}.dot span{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:999px;background:var(--blue);color:#fff;font-weight:700}.dot p{font-size:13px;margin-top:6px}.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.step{min-height:138px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;padding:12px;text-align:left;cursor:pointer;font:inherit}.step .num{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:999px;background:#eef2f7;color:#344054;font-weight:700}.step strong{display:block;margin-top:8px}.step em{display:block;margin-top:6px;color:var(--muted);font-style:normal;font-size:14px}.step.active{border-color:var(--blue);background:var(--blue-soft)}.detail{display:none;margin-top:12px;border:1px solid #bcd0ff;border-radius:var(--radius);background:var(--blue-soft);padding:15px}.detail.active{display:block}.why{margin-top:10px;padding:10px;border-radius:var(--radius);background:#fff;border:1px solid #c9d8ff}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}table{width:100%;border-collapse:collapse;background:#fff}th,td{border:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}th{background:#f0f3f8;width:140px}ul{margin:8px 0 0;padding-left:20px}li{margin:5px 0}.danger{border-color:#ffc4bd;background:var(--red-soft)}.qa{border:1px solid var(--line);border-radius:var(--radius);background:#fbfcff;margin-top:10px;overflow:hidden}.qa button{width:100%;border:0;background:#fff;text-align:left;padding:12px;font:inherit;cursor:pointer;color:var(--ink)}.qa p{display:none;padding:12px;border-top:1px solid var(--line);background:var(--green-soft)}.qa.open p{display:block}.answer{border:1px solid #a8c6ff;border-radius:var(--radius);background:var(--blue-soft);padding:15px}.answer .short{padding:10px;border-radius:var(--radius);background:#fff;border:1px solid #c9d8ff;margin-bottom:10px}@media(max-width:900px){.hero,.memory,.grid,.flow{grid-template-columns:1fr}.inner,main{padding-left:12px;padding-right:12px}.dot{min-width:110px}}
+    .chart-section{background:linear-gradient(180deg,#ffffff,#f8fafc);border:1px solid #dbeafe;box-shadow:0 14px 36px rgba(15,23,42,.07)}
+    .chart-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:16px}
+    .chart-head p{max-width:780px;margin:6px 0 0;color:var(--muted);line-height:1.75}
+    .chart-grid{display:grid;grid-template-columns:1.35fr .9fr;gap:16px;align-items:stretch}
+    .lane-board,.bar-board,.takeaway-board{border:1px solid var(--line);border-radius:var(--radius);background:#fff;padding:16px;box-shadow:0 10px 26px rgba(15,23,42,.05)}
+    .lane-board h3,.bar-board h3,.takeaway-board h3{margin:0 0 12px;font-size:15px;color:#0f172a}
+    .lane{display:grid;grid-template-columns:112px 1fr;gap:12px;align-items:start;margin:12px 0}
+    .lane-name{font-weight:800;border-radius:var(--radius);padding:10px 12px;text-align:center;border:1px solid transparent}
+    .lane-name.blue{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+    .lane-name.green{background:#ecfdf5;color:#047857;border-color:#bbf7d0}
+    .lane-name.amber{background:#fffbeb;color:#b45309;border-color:#fde68a}
+    .lane-items{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;position:relative}
+    .lane-item{min-height:54px;border:1px solid #e5e7eb;border-radius:var(--radius);background:#f8fafc;padding:10px;font-size:13px;line-height:1.45;display:flex;align-items:center;justify-content:center;text-align:center;color:#334155;font-weight:650}
+    .lane-item + .lane-item{position:relative}
+    .lane-item + .lane-item:before{content:'>';position:absolute;left:-10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-weight:900;font-size:14px}
+    .bar-row{display:grid;grid-template-columns:112px 1fr 40px;gap:10px;align-items:center;margin:11px 0;font-size:13px}
+    .bar-label{color:#334155;font-weight:700}
+    .bar-track{height:14px;background:#e5e7eb;border-radius:999px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(15,23,42,.08)}
+    .bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#2563eb,#14b8a6)}
+    .bar-value{font-variant-numeric:tabular-nums;color:#64748b;text-align:right;font-size:12px}
+    .takeaway-board{margin-top:16px;background:#f8fafc}
+    .takeaway-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0;padding:0;list-style:none}
+    .takeaway-list li{border:1px solid #e2e8f0;border-radius:var(--radius);background:#fff;padding:12px 13px;color:#334155;line-height:1.65;font-size:14px}
+    .takeaway-list li:before{content:'记';display:inline-flex;width:22px;height:22px;border-radius:999px;align-items:center;justify-content:center;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:900;margin-right:7px}
+    @media(max-width:820px){.chart-head{display:block}.chart-grid{grid-template-columns:1fr}.lane{grid-template-columns:1fr}.lane-items{grid-template-columns:1fr}.lane-item + .lane-item:before{content:'v';left:50%;top:-13px;transform:translateX(-50%)}.bar-row{grid-template-columns:96px 1fr 34px}.takeaway-list{grid-template-columns:1fr}}
+
+  </style>
+</head>
+<body>
+  <header><div class="inner"><p class="eyebrow">MySQL 日志系统</p><h1>M5-02 WAL 机制</h1><nav><a href="#map">总览</a><a href="#chart">图表</a><a href="#flow">流程</a><a href="#layers">对比</a><a href="#mistakes">易错</a><a href="#quiz">自测</a><a href="#answer">口述</a></nav></div></header>
+  <main>
+    <section id="map" class="hero"><div><h2>一句话定位</h2><p class="headline">WAL 是先写日志，再异步刷数据页，把提交路径上的随机写变成顺序写。</p><div class="memory"><div class="card"><strong>类比记忆</strong><p class="muted">先在流水本记账，再慢慢整理大账本。</p></div><div class="card"><strong>记忆口诀</strong><p class="muted">提交先保 redo，脏页慢慢刷。</p></div><div class="card"><strong>答题骨架</strong><p class="muted">修改内存页 -&gt; 写 redo -&gt; 提交返回 -&gt; 后台刷脏页。</p></div></div></div><div class="card"><strong>怎么用这页</strong><p class="muted">先看流程地图，再点每一步。最后用“30 秒短答”和“1 分钟口述”自测。</p></div></section>
+    <section><h2>流程地图</h2><div class="map"><div class="dot"><span>1</span><p>改内存页</p></div><div class="dot"><span>2</span><p>写 redo</p></div><div class="dot"><span>3</span><p>提交返回</p></div><div class="dot"><span>4</span><p>后台刷脏页</p></div><div class="dot"><span>5</span><p>崩溃重放</p></div></div></section>
+
+    <section id="chart" class="chart-section">
+      <div class="chart-head">
+        <div><h2>图表记忆：WAL 把随机写推迟</h2><p>WAL 的核心是提交路径先保证 redo 落盘，数据页可以后面异步刷。</p></div>
+      </div>
+      <div class="chart-grid">
+        <div class="lane-board"><h3>分层 / 流程图</h3>
+          <div class="lane">
+            <div class="lane-name amber">没有 WAL 的直觉</div>
+            <div class="lane-items"><div class="lane-item">每次提交都刷数据页</div><div class="lane-item">随机 I/O 多</div><div class="lane-item">延迟高</div><div class="lane-item">崩溃时难判断</div></div>
+          </div>
+          <div class="lane">
+            <div class="lane-name green">WAL 做法</div>
+            <div class="lane-items"><div class="lane-item">先改 Buffer Pool</div><div class="lane-item">顺序写 redo</div><div class="lane-item">提交快速返回</div><div class="lane-item">后台刷脏页</div></div>
+          </div>
+          <div class="lane">
+            <div class="lane-name blue">恢复逻辑</div>
+            <div class="lane-items"><div class="lane-item">崩溃后读 redo</div><div class="lane-item">重放已提交修改</div><div class="lane-item">保证数据页追上日志</div></div>
+          </div>
+        </div>
+        <div class="bar-board"><h3>提交路径成本感知</h3><div class="bar-row"><div class="bar-label">随机刷数据页</div><div class="bar-track"><div class="bar-fill" style="width:96%"></div></div><div class="bar-value">96</div></div><div class="bar-row"><div class="bar-label">顺序写 redo</div><div class="bar-track"><div class="bar-fill" style="width:34%"></div></div><div class="bar-value">34</div></div><div class="bar-row"><div class="bar-label">后台刷脏页</div><div class="bar-track"><div class="bar-fill" style="width:58%"></div></div><div class="bar-value">58</div></div><div class="bar-row"><div class="bar-label">崩溃重放</div><div class="bar-track"><div class="bar-fill" style="width:72%"></div></div><div class="bar-value">72</div></div>
+        </div>
+      </div>
+      <div class="takeaway-board"><h3>看图记 3 句话</h3><ul class="takeaway-list"><li>WAL 不是不写数据页，而是把数据页刷盘从提交路径移开。</li><li>提交是否安全取决于 redo 的持久化策略。</li><li>刷脏页跟 checkpoint、Buffer Pool 压力有关。</li></ul></div>
+    </section>
+    <section id="flow"><h2>点击式流程拆解</h2><div class="flow"><button class="step active" data-step="0"><span class="num">1</span><strong>改内存页</strong><em>先改 Buffer Pool 中的数据页。</em></button><button class="step" data-step="1"><span class="num">2</span><strong>写 redo</strong><em>把修改记录到 redo log。</em></button><button class="step" data-step="2"><span class="num">3</span><strong>提交返回</strong><em>只要 redo 按策略安全，事务可返回。</em></button><button class="step" data-step="3"><span class="num">4</span><strong>后台刷脏页</strong><em>脏页之后批量写回磁盘。</em></button><button class="step" data-step="4"><span class="num">5</span><strong>崩溃重放</strong><em>宕机后根据 redo 恢复数据页。</em></button></div><article class="detail active" data-panel="0"><p class="eyebrow">第 1 步</p><h3>改内存页</h3><p>先改 Buffer Pool 中的数据页。</p><div class="why"><strong>为什么要记：</strong>数据页变成脏页。</div></article><article class="detail" data-panel="1"><p class="eyebrow">第 2 步</p><h3>写 redo</h3><p>把修改记录到 redo log。</p><div class="why"><strong>为什么要记：</strong>小块顺序写更快。</div></article><article class="detail" data-panel="2"><p class="eyebrow">第 3 步</p><h3>提交返回</h3><p>只要 redo 按策略安全，事务可返回。</p><div class="why"><strong>为什么要记：</strong>刷盘策略影响安全性。</div></article><article class="detail" data-panel="3"><p class="eyebrow">第 4 步</p><h3>后台刷脏页</h3><p>脏页之后批量写回磁盘。</p><div class="why"><strong>为什么要记：</strong>可合并多次修改。</div></article><article class="detail" data-panel="4"><p class="eyebrow">第 5 步</p><h3>崩溃重放</h3><p>宕机后根据 redo 恢复数据页。</p><div class="why"><strong>为什么要记：</strong>保证已提交事务不丢。</div></article></section>
+    <section id="layers" class="grid"><div><h2>对比记忆</h2><table><tbody><tr><th>随机写数据页</th><td>位置分散、页大、慢。</td><td>提交延迟高。</td></tr><tr><th>顺序写 redo</th><td>追加写、小记录、快。</td><td>可 group commit。</td></tr></tbody></table></div><div><h2>先记住这几个抓手</h2><ul><li><strong>随机写数据页</strong>：位置分散、页大、慢。</li><li><strong>顺序写 redo</strong>：追加写、小记录、快。</li></ul></div></section>
+    <section id="mistakes" class="danger"><h2>容易说错</h2><ul><li>说 WAL 永远不刷数据页。</li><li>忽略 redo 写满会阻塞更新。</li><li>把 write 和 fsync 混淆。</li></ul></section>
+    <section id="quiz"><h2>3 个自测问题</h2><div class="qa"><button data-answer="0">redo 写满怎么办？</button><p id="ans-0">暂停或拖慢更新，刷脏页推进 checkpoint。</p></div><div class="qa"><button data-answer="1">为什么更快？</button><p id="ans-1">顺序写和 group commit 降低随机 IO。</p></div><div class="qa"><button data-answer="2">是否一定不丢？</button><p id="ans-2">取决于刷盘参数。</p></div></section>
+    <section id="answer"><h2>面试口述</h2><div class="answer"><div class="short"><strong>30 秒短答：</strong>WAL 的核心是先写 redo，再刷数据页。</div><p>WAL 的核心是先写 redo，再刷数据页。提交时不用等所有脏页随机写盘，只要 redo 按策略落盘即可返回，后台再刷脏页。这样提升写性能，又能通过 redo 做崩溃恢复。</p></div></section>
+  </main>
+  <script>
+    const steps=Array.from(document.querySelectorAll('.step'));const panels=Array.from(document.querySelectorAll('.detail'));
+    steps.forEach((step)=>step.addEventListener('click',()=>{steps.forEach((s)=>s.classList.remove('active'));panels.forEach((p)=>p.classList.remove('active'));step.classList.add('active');document.querySelector('[data-panel="'+step.dataset.step+'"]').classList.add('active')}));
+    document.querySelectorAll('[data-answer]').forEach((button)=>button.addEventListener('click',()=>button.parentElement.classList.toggle('open')));
+  </script>
+</body>
+</html>

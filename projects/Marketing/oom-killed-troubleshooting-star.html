@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marketing OOMKilled 排障图解</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --paper: #ffffff;
+      --ink: #17202a;
+      --muted: #65717f;
+      --line: #d8dee8;
+      --blue: #2563eb;
+      --blue-soft: #eaf1ff;
+      --green: #177245;
+      --green-soft: #e7f5ed;
+      --amber: #a15c00;
+      --amber-soft: #fff2d8;
+      --red: #b42318;
+      --red-soft: #fde7e4;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.65;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.96);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+
+    .wrap {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 18px 20px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .eyebrow,
+    .muted {
+      color: var(--muted);
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .nav a {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 5px 9px;
+      background: #fff;
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    section {
+      margin-top: 18px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+    }
+
+    .callout {
+      padding: 16px;
+      border: 1px solid #a8c6ff;
+      border-radius: var(--radius);
+      background: var(--blue-soft);
+    }
+
+    .evidence {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .step {
+      min-height: 130px;
+      padding: 14px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .step.active {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .detail {
+      margin-top: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .metric {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 20px;
+      margin-top: 4px;
+    }
+
+    .bar-box {
+      margin-top: 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .bar {
+      position: relative;
+      height: 30px;
+      overflow: hidden;
+      border-radius: 6px;
+      background: #e9edf4;
+    }
+
+    .fill {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--green), var(--amber), var(--red));
+    }
+
+    .limit-line {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 3px;
+      height: 100%;
+      background: #111827;
+    }
+
+    .legend {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .card {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .risk {
+      border-color: #f3b3ac;
+      background: var(--red-soft);
+    }
+
+    .ok {
+      border-color: #9ad1b4;
+      background: var(--green-soft);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f1f4f8;
+    }
+
+    code {
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: #eef1f5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+    }
+
+    .answer {
+      padding: 16px;
+      border: 1px solid #a8c6ff;
+      border-radius: var(--radius);
+      background: var(--blue-soft);
+    }
+
+    @media (max-width: 860px) {
+      .evidence,
+      .metric-grid,
+      .split {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .wrap {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      section {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <p class="eyebrow">Projects / Marketing</p>
+      <h1>Marketing OOMKilled 排障图解</h1>
+      <nav class="nav" aria-label="页面导航">
+        <a href="#plain">先讲人话</a>
+        <a href="#evidence">证据链</a>
+        <a href="#memory">内存判断</a>
+        <a href="#noise">排除干扰</a>
+        <a href="#answer">面试说法</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="plain">
+      <h2>先讲人话</h2>
+      <div class="callout">
+        <p>这次问题不是“Go 代码 panic 导致服务退出”，而是容器内存超过 2GiB limit 后，被系统用 <code>SIGKILL</code> 杀掉。核心证据不是单独的 <code>137</code>，而是 <code>OOMKilled</code>、<code>memory.events.oom_kill=1</code>、以及 <code>usage > limit</code> 三者组合。</p>
+      </div>
+    </section>
+
+    <section id="evidence">
+      <h2>排障证据链</h2>
+      <p class="muted">点击步骤查看应该怎么讲。</p>
+      <div class="evidence">
+        <button class="step active" type="button" data-title="1. 先看现象" data-detail="CMDB 显示 Container exited with status 137，并且 Running Instances 是 0 of 1。这个现象说明实例被杀或异常退出，但还不能单独下 OOM 结论。">
+          <strong>现象</strong>
+          <p class="muted">status 137 / 0 of 1</p>
+        </button>
+        <button class="step" type="button" data-title="2. 找退出证据" data-detail="进入 STDOUT / STDERR 和 termination 相关日志，找 exit code、OOM kill、cgroup memory event、usage 和 limit。排障要优先找系统退出证据。">
+          <strong>证据</strong>
+          <p class="muted">STDOUT / STDERR</p>
+        </button>
+        <button class="step" type="button" data-title="3. 做数值对比" data-detail="usage=2150584320，limit=2147483648。进程使用内存已经略超 2GiB 容器 limit，所以被 cgroup OOM kill。">
+          <strong>对比</strong>
+          <p class="muted">usage > limit</p>
+        </button>
+        <button class="step" type="button" data-title="4. 再排除干扰" data-detail="业务 panic、smoke test retry、profiling report 都可能出现在同一段日志里，但它们不是容器退出的直接证据。需要说明为什么没有被这些日志带偏。">
+          <strong>排除</strong>
+          <p class="muted">panic / retry / report</p>
+        </button>
+      </div>
+      <div class="detail" id="evidenceDetail">
+        <h3>1. 先看现象</h3>
+        <p>CMDB 显示 Container exited with status 137，并且 Running Instances 是 0 of 1。这个现象说明实例被杀或异常退出，但还不能单独下 OOM 结论。</p>
+      </div>
+    </section>
+
+    <section id="memory">
+      <h2>内存判断</h2>
+      <div class="metric-grid">
+        <div class="metric">
+          <span class="muted">Exit code</span>
+          <strong>137</strong>
+          <p class="muted">通常表示收到 <code>SIGKILL</code>，但还要找 OOM 证据。</p>
+        </div>
+        <div class="metric">
+          <span class="muted">Usage</span>
+          <strong>2,150,584,320</strong>
+          <p class="muted">约 2.15GB。</p>
+        </div>
+        <div class="metric">
+          <span class="muted">Limit</span>
+          <strong>2,147,483,648</strong>
+          <p class="muted">2GiB。</p>
+        </div>
+      </div>
+      <div class="bar-box">
+        <div class="bar" aria-label="内存 usage 超过 limit 示意">
+          <div class="fill"></div>
+          <div class="limit-line"></div>
+        </div>
+        <div class="legend">
+          <span>usage=2150584320</span>
+          <span>limit=2147483648</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="noise">
+      <h2>排除干扰项</h2>
+      <div class="split">
+        <div class="card risk">
+          <h3>不要直接下结论</h3>
+          <p>只看到 <code>status 137</code> 不能说一定是 OOM。137 是 <code>128 + 9</code>，表示 <code>SIGKILL</code>，也可能是人为 kill 或平台操作。</p>
+        </div>
+        <div class="card ok">
+          <h3>强证据组合</h3>
+          <p>把 <code>OOMKilled</code>、<code>memory.events.oom_kill=1</code>、<code>usage > limit</code> 放在一起，才能把直接原因定性为容器 OOMKilled。</p>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>日志/现象</th>
+            <th>怎么解释</th>
+            <th>面试风险</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>SeaTalk webhook panic</td>
+            <td>可能是 reliable-event 中 recover 后记录的业务错误。</td>
+            <td>不能把 recover 后的 panic 直接说成容器退出原因。</td>
+          </tr>
+          <tr>
+            <td>smoke test retry</td>
+            <td>启动检查曾经 retry，但后续 passed。</td>
+            <td>不能把启动检查失败和 OOM 直接等同。</td>
+          </tr>
+          <tr>
+            <td>profiling report</td>
+            <td>可能只是 OOM 前最后输出的日志。</td>
+            <td>不能只凭最后一行日志判断根因。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>后续定位路径</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>目标</th>
+            <th>做法</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>先恢复</td>
+            <td>UAT 可临时把 memory 从 2GiB 提到 3GiB 或 4GiB，先让实例恢复。</td>
+          </tr>
+          <tr>
+            <td>判断峰值还是泄漏</td>
+            <td>看 OOM 前 5 到 15 分钟 Grafana 内存曲线和业务日志。</td>
+          </tr>
+          <tr>
+            <td>查 Go 内存</td>
+            <td>看 pprof/heap、goroutine、Top alloc、对象保留路径。</td>
+          </tr>
+          <tr>
+            <td>查业务触发点</td>
+            <td>重点看批任务、consumer、scheduler、大查询、一次性大 slice/map、缓存增长和并发。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="answer">
+      <h2>1 分钟面试说法</h2>
+      <div class="answer">
+        <p>我排查过一次 Marketing UAT 容器异常退出。页面上只看到 <code>Container exited with status 137</code>，同时日志里还有业务 panic 和 smoke test retry，容易被带偏。我先从 CMDB task、STDOUT/STDERR 和 termination log 找直接退出证据，看到 <code>exit code=137</code>、<code>memory.events.oom_kill=1</code>，并且内存 <code>usage=2150584320</code> 超过 <code>limit=2147483648</code>，所以定性为容器 OOMKilled。然后我排除了 recover 后的业务 panic 和已通过的 smoke test retry，建议先临时扩容恢复，再结合 Grafana 曲线、consumer、scheduler、批任务和 pprof 继续定位业务根因。</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const detail = document.getElementById("evidenceDetail");
+    const detailTitle = detail.querySelector("h3");
+    const detailBody = detail.querySelector("p");
+    const steps = Array.from(document.querySelectorAll(".step"));
+
+    steps.forEach((step) => {
+      step.addEventListener("click", () => {
+        steps.forEach((item) => item.classList.remove("active"));
+        step.classList.add("active");
+        detailTitle.textContent = step.dataset.title;
+        detailBody.textContent = step.dataset.detail;
+      });
+    });
+  </script>
+</body>
+</html>

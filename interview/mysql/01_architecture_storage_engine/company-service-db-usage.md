@@ -1,5 +1,7 @@
 # Shopee Insurance 服务如何使用 MySQL
 
+
+可视化页面：[company-service-db-usage.html](company-service-db-usage.html)
 用途：把 MySQL 八股和公司服务实践对应起来，帮助理解“客户端、连接器、长连接、主从、分表、事务”这些概念在真实服务里是什么样子。
 
 资料来源：

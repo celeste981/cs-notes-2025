@@ -6,6 +6,8 @@
 
 关键词：UPDATE、Buffer Pool、脏页、undo log、redo log、binlog、两阶段提交、WAL、Change Buffer
 
+可视化页面：[M1-02-update-flow.html](M1-02-update-flow.html)
+
 ## 问题
 
 一条 `UPDATE` 语句在 MySQL 中是怎么执行的？中间经过哪些组件？涉及哪些日志和缓冲区？

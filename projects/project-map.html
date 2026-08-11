@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Projects 项目复习结构图</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --paper: #ffffff;
+      --ink: #17202a;
+      --muted: #637181;
+      --line: #d7deea;
+      --blue: #2563eb;
+      --blue-soft: #eaf1ff;
+      --green: #177245;
+      --green-soft: #e7f5ed;
+      --amber: #a15c00;
+      --amber-soft: #fff2d8;
+      --red: #b42318;
+      --red-soft: #fde7e4;
+      --violet: #6842d8;
+      --violet-soft: #f0edff;
+      --teal: #0f766e;
+      --teal-soft: #e3f5f2;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.6;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid var(--line);
+      background: rgba(246, 247, 249, 0.94);
+      backdrop-filter: blur(8px);
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 72px;
+    }
+
+    .brand {
+      min-width: 240px;
+    }
+
+    .brand p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .brand h1 {
+      margin: 2px 0 0;
+      font-size: clamp(24px, 3vw, 36px);
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    nav a {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      background: var(--paper);
+      color: var(--ink);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    main {
+      padding: 28px 0 52px;
+    }
+
+    section {
+      margin-top: 24px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      padding: 24px;
+    }
+
+    section h2 {
+      margin: 0 0 12px;
+      font-size: 24px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    section > p {
+      margin: 0 0 18px;
+      color: var(--muted);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .hero-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+      background: linear-gradient(180deg, #ffffff, #f8fafc);
+    }
+
+    .hero-card h2 {
+      margin-bottom: 10px;
+      font-size: clamp(28px, 4vw, 44px);
+    }
+
+    .hero-card p {
+      color: var(--muted);
+      margin: 0;
+      max-width: 760px;
+    }
+
+    .quick-links {
+      display: grid;
+      gap: 10px;
+    }
+
+    .quick-links a {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      background: var(--paper);
+      font-weight: 700;
+    }
+
+    .quick-links span {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      min-height: 178px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+      background: #fbfcfe;
+    }
+
+    .card h3 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 8px;
+      font-size: 19px;
+      line-height: 1.25;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 38px;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .p0 { color: var(--red); background: var(--red-soft); }
+    .p1 { color: var(--amber); background: var(--amber-soft); }
+    .p2 { color: var(--green); background: var(--green-soft); }
+    .info { color: var(--blue); background: var(--blue-soft); }
+    .ai { color: var(--violet); background: var(--violet-soft); }
+
+    .card p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .card ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--ink);
+      font-size: 14px;
+    }
+
+    .card li + li {
+      margin-top: 4px;
+    }
+
+    .diagram {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+      padding: 8px;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      min-width: 760px;
+      height: auto;
+    }
+
+    .lane {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 14px;
+      align-items: stretch;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      background: #fbfcfe;
+    }
+
+    .lane + .lane {
+      margin-top: 10px;
+    }
+
+    .lane strong {
+      display: block;
+      font-size: 16px;
+    }
+
+    .lane p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .step {
+      position: relative;
+      min-height: 140px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      background: #fbfcfe;
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+
+    .step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f0f3f8;
+      font-size: 13px;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    code {
+      border-radius: 6px;
+      padding: 2px 5px;
+      background: #edf1f7;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    @media (max-width: 920px) {
+      .header-inner,
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .header-inner {
+        align-items: flex-start;
+        padding: 14px 0;
+      }
+
+      nav {
+        justify-content: flex-start;
+      }
+
+      .grid,
+      .steps {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .wrap {
+        padding: 0 14px;
+      }
+
+      section {
+        padding: 18px;
+      }
+
+      .grid,
+      .steps,
+      .lane {
+        grid-template-columns: 1fr;
+      }
+
+      nav a {
+        width: calc(50% - 4px);
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap header-inner">
+      <div class="brand">
+        <p>Projects / Interview Prep</p>
+        <h1>项目复习结构图</h1>
+      </div>
+      <nav aria-label="页面导航">
+        <a href="#map">项目地图</a>
+        <a href="#flow">业务链路</a>
+        <a href="#review">复习路线</a>
+        <a href="#rules">放置规则</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="hero">
+      <div class="hero-card">
+        <h2>先从总览进，再按服务深挖</h2>
+        <p>`Insurance/` 负责讲清部门业务地图；`Marketing/`、`O-BFF/`、`Marketing-Data/`、`Canal/` 负责讲清具体项目架构和技术细节；`AI/` 作为补充项目。以后新增材料先判断是“跨服务总览”还是“单服务深挖”，再决定放哪里。</p>
+      </div>
+      <div class="quick-links">
+        <a href="README.md">Markdown 总入口 <span>projects/README.md</span></a>
+        <a href="Insurance/README.md">部门总览 <span>Insurance</span></a>
+        <a href="Marketing/README.md">主项目深挖 <span>Marketing</span></a>
+        <a href="O-BFF/README.md">后台 BFF <span>O-BFF</span></a>
+      </div>
+    </div>
+
+    <section id="map">
+      <h2>项目地图</h2>
+      <p>面试时可以把这些项目讲成一个 Insurance 业务组内的系统群，而不是几个互不相关的服务。</p>
+      <div class="grid">
+        <a class="card" href="Insurance/README.md">
+          <h3><span class="badge info">总览</span>Insurance</h3>
+          <p>部门业务地图、跨服务关系、整体面试口径。</p>
+          <ul>
+            <li>入口层、核心服务、数据链路</li>
+            <li>端到端业务流程</li>
+            <li>能讲和不能夸大的边界</li>
+          </ul>
+        </a>
+        <a class="card" href="Marketing/README.md">
+          <h3><span class="badge p0">P0</span>Marketing</h3>
+          <p>Marketing Engine 主服务，项目讲述核心。</p>
+          <ul>
+            <li>Plan / Trigger / Processor / Handler</li>
+            <li>RuleCenter / 用户组匹配</li>
+            <li>Redis Roaring Bitmap 优化</li>
+          </ul>
+        </a>
+        <a class="card" href="O-BFF/README.md">
+          <h3><span class="badge p0">P0</span>O-BFF</h3>
+          <p>Insurance Admin 后台聚合入口。</p>
+          <ul>
+            <li>配置化组件</li>
+            <li>Approval Center / Task Center</li>
+            <li>Batch / Data Fix / Proxy</li>
+          </ul>
+        </a>
+        <a class="card" href="Marketing-Data/README.md">
+          <h3><span class="badge p1">P1</span>Marketing-Data</h3>
+          <p>Marketing 离线/批量数据服务。</p>
+          <ul>
+            <li>OfflineDataFetchAndPush</li>
+            <li>batch history / handler</li>
+            <li>Kafka 推送和监控</li>
+          </ul>
+        </a>
+        <a class="card" href="Canal/README.md">
+          <h3><span class="badge p1">P1</span>Canal</h3>
+          <p>MySQL binlog 到 ES 的同步链路。</p>
+          <ul>
+            <li>Canal Instance / Kafka / Adapter</li>
+            <li>sync script / mapping / ETL</li>
+            <li>DLQ 和同步阻塞排查</li>
+          </ul>
+        </a>
+        <a class="card" href="AI/README.md">
+          <h3><span class="badge ai">补充</span>AI</h3>
+          <p>知识工程化和 Agent 项目。</p>
+          <ul>
+            <li>MCP / Skill / 知识库</li>
+            <li>团队知识沉淀</li>
+            <li>工程效率加分项</li>
+          </ul>
+        </a>
+      </div>
+    </section>
+
+    <section id="flow">
+      <h2>核心业务链路</h2>
+      <p>这张图用来记面试中的主线：Admin 配置和审批通过 O-BFF 进入，Marketing 负责执行营销计划，Marketing-Data 提供离线名单，Canal 把 MySQL 变化同步到 ES 支撑后台查询。</p>
+      <div class="diagram">
+        <svg viewBox="0 0 1080 430" role="img" aria-label="Insurance projects relationship diagram">
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#637181"></path>
+            </marker>
+          </defs>
+          <rect x="24" y="28" width="160" height="70" rx="8" fill="#eaf1ff" stroke="#2563eb"></rect>
+          <text x="104" y="58" text-anchor="middle" font-size="16" font-weight="700" fill="#17202a">Insurance Admin</text>
+          <text x="104" y="80" text-anchor="middle" font-size="12" fill="#637181">配置 / 审批 / 查询</text>
+
+          <rect x="250" y="28" width="170" height="70" rx="8" fill="#f0edff" stroke="#6842d8"></rect>
+          <text x="335" y="58" text-anchor="middle" font-size="16" font-weight="700" fill="#17202a">O-BFF</text>
+          <text x="335" y="80" text-anchor="middle" font-size="12" fill="#637181">聚合 / 配置化组件</text>
+
+          <rect x="488" y="28" width="190" height="70" rx="8" fill="#e7f5ed" stroke="#177245"></rect>
+          <text x="583" y="58" text-anchor="middle" font-size="16" font-weight="700" fill="#17202a">Marketing Engine</text>
+          <text x="583" y="80" text-anchor="middle" font-size="12" fill="#637181">Plan / Processor / Handler</text>
+
+          <rect x="745" y="28" width="180" height="70" rx="8" fill="#fff2d8" stroke="#a15c00"></rect>
+          <text x="835" y="58" text-anchor="middle" font-size="16" font-weight="700" fill="#17202a">Marketing-Data</text>
+          <text x="835" y="80" text-anchor="middle" font-size="12" fill="#637181">离线供数 / Kafka</text>
+
+          <rect x="250" y="190" width="170" height="70" rx="8" fill="#fde7e4" stroke="#b42318"></rect>
+          <text x="335" y="220" text-anchor="middle" font-size="16" font-weight="700" fill="#17202a">Canal Adapter</text>
+          <text x="335" y="242" text-anchor="middle" font-size="12" fill="#637181">binlog -> ES</text>
+
+          <rect x="24" y="190" width="160" height="70" rx="8" fill="#e3f5f2" stroke="#0f766e"></rect>
+          <text x="104" y="220" text-anchor="middle" font-size="16" font-weight="700" fill="#17202a">MySQL</text>
+          <text x="104" y="242" text-anchor="middle" font-size="12" fill="#637181">业务数据源</text>
+
+          <rect x="488" y="190" width="190" height="70" rx="8" fill="#eaf1ff" stroke="#2563eb"></rect>
+          <text x="583" y="220" text-anchor="middle" font-size="16" font-weight="700" fill="#17202a">Elasticsearch</text>
+          <text x="583" y="242" text-anchor="middle" font-size="12" fill="#637181">Admin 查询 / 报表</text>
+
+          <rect x="745" y="190" width="180" height="70" rx="8" fill="#f0edff" stroke="#6842d8"></rect>
+          <text x="835" y="220" text-anchor="middle" font-size="16" font-weight="700" fill="#17202a">Data / S3 / CSV</text>
+          <text x="835" y="242" text-anchor="middle" font-size="12" fill="#637181">名单和离线文件</text>
+
+          <path d="M184 63 H250" stroke="#637181" stroke-width="2" fill="none" marker-end="url(#arrow)"></path>
+          <path d="M420 63 H488" stroke="#637181" stroke-width="2" fill="none" marker-end="url(#arrow)"></path>
+          <path d="M745 63 H678" stroke="#637181" stroke-width="2" fill="none" marker-end="url(#arrow)"></path>
+          <path d="M835 98 V190" stroke="#637181" stroke-width="2" fill="none" marker-end="url(#arrow)"></path>
+          <path d="M184 225 H250" stroke="#637181" stroke-width="2" fill="none" marker-end="url(#arrow)"></path>
+          <path d="M420 225 H488" stroke="#637181" stroke-width="2" fill="none" marker-end="url(#arrow)"></path>
+          <path d="M583 190 V98" stroke="#637181" stroke-width="2" fill="none" marker-end="url(#arrow)"></path>
+          <path d="M488 225 H420" stroke="#637181" stroke-width="2" fill="none" marker-end="url(#arrow)"></path>
+
+          <rect x="24" y="330" width="901" height="52" rx="8" fill="#ffffff" stroke="#d7deea"></rect>
+          <text x="44" y="362" font-size="14" fill="#17202a">面试表达顺序：先讲 Insurance 业务组整体，再讲 Marketing 主项目，最后用 O-BFF / Marketing-Data / Canal 补充上下游和优化点。</text>
+        </svg>
+      </div>
+    </section>
+
+    <section id="review">
+      <h2>复习路线</h2>
+      <p>不需要每次从所有文件开始看。按这个顺序复习，能避免内容散掉。</p>
+      <div class="steps">
+        <a class="step" href="Insurance/insurance-business-map.html">
+          <strong>1. 部门地图</strong>
+          <p>先把 Insurance 服务群和业务链路讲顺。</p>
+        </a>
+        <a class="step" href="Marketing/marketing-engine-architecture.html">
+          <strong>2. 主项目架构</strong>
+          <p>Marketing 是主项目，先记核心模型和主链路。</p>
+        </a>
+        <a class="step" href="Marketing/marketing-user-list-redis-roaring-bitmap-deep-dive.html">
+          <strong>3. 技术优化</strong>
+          <p>用 Redis Roaring Bitmap 准备缓存和性能深挖。</p>
+        </a>
+        <a class="step" href="O-BFF/o-bff-architecture.html">
+          <strong>4. 后台治理</strong>
+          <p>补 O-BFF、配置化组件、审批和任务中心。</p>
+        </a>
+        <a class="step" href="Canal/canal-es-sync-architecture.html">
+          <strong>5. 数据链路</strong>
+          <p>补 Marketing-Data 和 Canal，回答离线供数与 ES 同步。</p>
+        </a>
+      </div>
+    </section>
+
+    <section id="rules">
+      <h2>文件放置规则</h2>
+      <p>新增内容前先判断它属于哪一层，避免同一主题在多个目录重复扩散。</p>
+      <div class="lane">
+        <strong>部门级内容</strong>
+        <p>放 `Insurance/`。例如业务地图、跨服务流程、统一面试口径、资料来源索引。</p>
+      </div>
+      <div class="lane">
+        <strong>服务级内容</strong>
+        <p>放对应项目目录。主架构用 `&lt;project&gt;-architecture.md/html`，模块深挖用 `&lt;project&gt;-&lt;topic&gt;-deep-dive.md`。</p>
+      </div>
+      <div class="lane">
+        <strong>图解内容</strong>
+        <p>HTML 和 Markdown 尽量同名；Markdown 顶部要放 HTML 链接；HTML 自包含，不依赖 CDN。</p>
+      </div>
+      <div class="lane">
+        <strong>真实性边界</strong>
+        <p>没确认的个人贡献、线上收益、事故结论写 `待补充`。可以讲“组内负责/我熟悉链路”，不要说成“我独立负责全部”。</p>
+      </div>
+
+      <table style="margin-top: 16px;">
+        <thead>
+          <tr>
+            <th>新增材料</th>
+            <th>推荐目录</th>
+            <th>备注</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>某个 Admin 页面到下游服务的完整流程</td>
+            <td><code>O-BFF/</code></td>
+            <td>如果涉及多个服务，再在 <code>Insurance/business-flow-map.md</code> 加一条总览。</td>
+          </tr>
+          <tr>
+            <td>Marketing 某个 Processor / Handler 深挖</td>
+            <td><code>Marketing/</code></td>
+            <td>同步更新 <code>Marketing/README.md</code>。</td>
+          </tr>
+          <tr>
+            <td>离线名单、batch history、Kafka 推送</td>
+            <td><code>Marketing-Data/</code></td>
+            <td>和 Marketing 主链路相关时，在 Marketing 文档里只保留边界说明。</td>
+          </tr>
+          <tr>
+            <td>Canal sync script、ETL、DLQ 排障</td>
+            <td><code>Canal/</code></td>
+            <td>如果支撑 Admin 查询，可以在 Insurance 总览里补一句关系。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

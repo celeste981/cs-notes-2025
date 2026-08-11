@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>O-BFF 架构图解</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --ink: #17202c;
+      --muted: #5f6f83;
+      --line: #d7e0ec;
+      --blue: #2563eb;
+      --green: #0f766e;
+      --amber: #b45309;
+      --red: #b91c1c;
+      --violet: #6d28d9;
+      --shadow: 0 14px 36px rgba(22, 32, 44, .08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 34px 7vw 24px;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .crumb { color: var(--muted); font-size: 14px; margin-bottom: 6px; }
+    h1 { margin: 0; font-size: 34px; letter-spacing: 0; }
+    .sub { margin: 10px 0 0; color: var(--muted); max-width: 920px; }
+    nav { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
+    nav a, button.tab {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      padding: 9px 13px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    main { padding: 28px 7vw 56px; }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 22px;
+      box-shadow: var(--shadow);
+    }
+    h2 { margin: 0 0 18px; font-size: 24px; }
+    h3 { margin: 0 0 8px; font-size: 17px; }
+    .grid { display: grid; gap: 14px; }
+    .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fbfdff;
+      min-height: 118px;
+    }
+    .card p { margin: 0; color: var(--muted); }
+    .callout {
+      border: 1px solid #bfdbfe;
+      border-left: 5px solid var(--blue);
+      border-radius: 8px;
+      padding: 16px;
+      background: #eff6ff;
+      margin-bottom: 16px;
+    }
+    .callout strong { display: block; margin-bottom: 6px; }
+    .memory {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .memory div {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+      min-height: 96px;
+    }
+    .memory b { display: block; font-size: 22px; color: var(--blue); margin-bottom: 4px; }
+    .chart-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; }
+    .chart-card { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: #fbfdff; }
+    .chart-title { margin: 0 0 12px; font-weight: 700; }
+    .chart-note { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+    .bar-row { display: grid; grid-template-columns: 148px 1fr; gap: 10px; align-items: center; margin: 10px 0; }
+    .bar-row label { color: var(--ink); font-size: 14px; }
+    .bar-track { height: 28px; background: #eef2f7; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+    .bar-fill { height: 100%; color: #fff; display: flex; align-items: center; padding-left: 9px; font-size: 13px; white-space: nowrap; }
+    .bar-blue { background: var(--blue); }
+    .bar-green { background: var(--green); }
+    .bar-amber { background: var(--amber); }
+    .bar-red { background: var(--red); }
+    .bar-violet { background: var(--violet); }
+    .matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .matrix-cell { border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-height: 116px; background: #fff; }
+    .matrix-cell strong { display: block; margin-bottom: 6px; }
+    .matrix-cell span { color: var(--muted); font-size: 14px; }
+    .tag {
+      display: inline-block;
+      font-size: 12px;
+      color: #fff;
+      background: var(--blue);
+      padding: 3px 8px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+    .tag.green { background: var(--green); }
+    .tag.amber { background: var(--amber); }
+    .tag.red { background: var(--red); }
+    .tag.violet { background: var(--violet); }
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+    .node {
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--blue);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fff;
+      min-height: 124px;
+    }
+    .node strong { display: block; margin-bottom: 8px; }
+    .node span { color: var(--muted); font-size: 14px; }
+    .node.green { border-left-color: var(--green); }
+    .node.amber { border-left-color: var(--amber); }
+    .node.red { border-left-color: var(--red); }
+    .node.violet { border-left-color: var(--violet); }
+    .details { display: none; }
+    .details.active { display: block; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+    button.tab.active { border-color: var(--blue); color: var(--blue); background: #eff6ff; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; }
+    .answer {
+      border-left: 4px solid var(--green);
+      padding: 12px 14px;
+      background: #ecfdf5;
+      border-radius: 6px;
+      color: #12312b;
+    }
+    code { background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    @media (max-width: 980px) {
+      .grid.cols-4, .grid.cols-3, .flow, .memory, .chart-grid, .bar-row { grid-template-columns: 1fr; }
+      header { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="crumb">Projects / O-BFF</div>
+    <h1>O-BFF 架构图解</h1>
+    <p class="sub">一句话：Insurance Admin 的后台聚合和治理层，负责把 Admin 请求接入权限、日志、脱敏、审批、批量任务、数据修复、配置化组件和下游服务编排。</p>
+    <nav>
+      <a href="./o-bff-architecture.md">Markdown 版</a>
+      <a href="./README.md">项目索引</a>
+      <a href="../Insurance/o-bff-interview-notes.md">面试专项</a>
+    </nav>
+  </header>
+  <main>
+    <section>
+      <h2>一眼看懂</h2>
+      <div class="flow">
+        <div class="node"><strong>Admin Portal</strong><span>后台页面、权限入口、批量上传、查询、配置、审批动作。</span></div>
+        <div class="node green"><strong>Interceptor</strong><span>重复请求、公共参数、操作日志、更新历史、脱敏、审批信息、proxy、安全日志。</span></div>
+        <div class="node amber"><strong>Service / Manager</strong><span>接 API，做后台场景编排，组合中心模块和下游调用。</span></div>
+        <div class="node red"><strong>治理中心</strong><span>Approval、Batch Operate、Task Center、Data Fix、Operator Executer。</span></div>
+        <div class="node violet"><strong>下游 Owner</strong><span>Product、Order、Policy、Promotion、Marketing、Account、Risk 等事实源。</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>核心能力地图</h2>
+      <div class="grid cols-4">
+        <div class="card"><span class="tag">BFF</span><h3>后台聚合</h3><p>Admin 不直接对接多个下游服务，由 O-BFF 统一适配和编排。</p></div>
+        <div class="card"><span class="tag green">Audit</span><h3>审批治理</h3><p>高风险操作先创建审批实例，审批通过后再触发业务执行。</p></div>
+        <div class="card"><span class="tag amber">Batch</span><h3>批量任务</h3><p>上传、校验、切批、异步执行、结果下载、失败明细。</p></div>
+        <div class="card"><span class="tag red">Fix</span><h3>数据修复</h3><p>修复记录、审批、可靠事件、下游修复接口、执行状态。</p></div>
+        <div class="card"><span class="tag violet">Proxy</span><h3>RPC Proxy</h3><p>简单标准接口配置化转发，复杂场景走 Manager/Biz 编排。</p></div>
+        <div class="card"><span class="tag">ES</span><h3>查询视图</h3><p>复杂列表和报表查 ES，但 MySQL owner 服务仍是事实源。</p></div>
+        <div class="card"><span class="tag green">Log</span><h3>审计留痕</h3><p>操作日志、更新历史、安全日志、审批历史、任务记录。</p></div>
+        <div class="card"><span class="tag amber">Contract</span><h3>下游契约</h3><p>字段、分页、operator、时间、批量返回结构都要和 owner 对齐。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>配置化组件体系</h2>
+      <div class="callout">
+        <strong>面试主线</strong>
+        O-BFF 不只是手写后台接口。我们把 Admin 常见能力沉淀成 Assembly Proxy、Assembly Import、Assembly Export、Mask、Approval Mapping、Operate History、TaskConfig 这些配置化组件，标准场景配置接入，复杂高风险场景再写 Manager/Biz。
+      </div>
+      <div class="memory">
+        <div><b>代</b><strong>Proxy 代转</strong><span>标准查询/更新接口走配置化 RPC proxy。</span></div>
+        <div><b>导</b><strong>Import 导入</strong><span>CSV、字段映射、切批、错误明细。</span></div>
+        <div><b>出</b><strong>Export 导出</strong><span>Page/Scroll、S3、下载记录。</span></div>
+        <div><b>脱</b><strong>Mask 脱敏</strong><span>PII 字段统一在 interceptor 处理。</span></div>
+        <div><b>审</b><strong>Approval 审批</strong><span>高风险操作先审批再执行。</span></div>
+        <div><b>史</b><strong>History 留痕</strong><span>操作日志、更新历史、任务记录。</span></div>
+      </div>
+      <div class="flow">
+        <div class="node"><strong>Admin 新需求</strong><span>先判断是不是标准后台能力：proxy、导入、导出、脱敏、审批。</span></div>
+        <div class="node green"><strong>选择组件</strong><span>Assembly Proxy / Import / Export / Mask / Approval Mapping。</span></div>
+        <div class="node amber"><strong>生成配置</strong><span>AssemblyTool 或 Admin skills 生成配置表、config-center、batch_task_config。</span></div>
+        <div class="node red"><strong>运行时执行</strong><span>Interceptor、Task Center、Approval Center 读取配置并执行。</span></div>
+        <div class="node violet"><strong>验证观测</strong><span>审批记录、任务记录、操作历史、Prometheus、日志。</span></div>
+      </div>
+      <table style="margin-top:16px">
+        <tr><th>组件</th><th>配置入口</th><th>运行时</th><th>面试抓手</th></tr>
+        <tr><td>Assembly Proxy</td><td><code>admin_assembly_tab</code>、<code>proxy_config</code></td><td><code>rpc_proxy</code> / <code>rpc_new_proxy</code></td><td>标准接口配置化转发，复杂逻辑保留 handler 扩展点。</td></tr>
+        <tr><td>Assembly Import</td><td><code>batch_task_config</code>、<code>remote_type=6</code></td><td>Task Center 文件解析、切批、调用下游 RPC</td><td>导入能力统一处理字段映射、并发、错误列、结果文件。</td></tr>
+        <tr><td>Assembly Export</td><td><code>batch_task_config</code>、<code>remote_type=7</code></td><td>分页/scroll 查询、S3、download record</td><td>大导出要讲清稳定游标、超时、终止条件。</td></tr>
+        <tr><td>Mask / Approval</td><td>config-center、<code>audit_biz_type_mapping</code></td><td>mask interceptor、approval/batch center</td><td>脱敏和审批属于后台治理，不应散落到每个业务接口。</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>图表：组件覆盖和接入边界</h2>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-title">配置化组件覆盖面</div>
+          <div class="bar-row"><label>Proxy 转发</label><div class="bar-track"><div class="bar-fill bar-blue" style="width:88%">标准接口高复用</div></div></div>
+          <div class="bar-row"><label>Import 导入</label><div class="bar-track"><div class="bar-fill bar-green" style="width:82%">文件/字段/错误列</div></div></div>
+          <div class="bar-row"><label>Export 导出</label><div class="bar-track"><div class="bar-fill bar-amber" style="width:78%">分页/scroll/S3</div></div></div>
+          <div class="bar-row"><label>Mask 脱敏</label><div class="bar-track"><div class="bar-fill bar-red" style="width:74%">PII 统一治理</div></div></div>
+          <div class="bar-row"><label>Approval 审批</label><div class="bar-track"><div class="bar-fill bar-violet" style="width:86%">高风险操作接入</div></div></div>
+          <p class="chart-note">这是面试记忆图，不代表生产指标；用来说明 O-BFF 把后台共性能力组件化。</p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">配置化 vs 手写代码边界</div>
+          <div class="matrix">
+            <div class="matrix-cell"><strong>标准 + 低风险</strong><span>Assembly Proxy：查询、简单更新、字段映射清楚。</span></div>
+            <div class="matrix-cell"><strong>标准 + 高风险</strong><span>Proxy/Batch + Approval Mapping：先审批，再执行。</span></div>
+            <div class="matrix-cell"><strong>批处理 + 可抽象</strong><span>Assembly Import/Export：文件、S3、任务、结果明细统一。</span></div>
+            <div class="matrix-cell"><strong>复杂 + 资损</strong><span>手写 Manager/Biz：状态机、幂等、补偿和异常路径显式编排。</span></div>
+          </div>
+          <p class="chart-note">面试可按这个 2x2 图回答“什么时候配置化，什么时候写代码”。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>典型流程</h2>
+      <div class="tabs">
+        <button class="tab active" data-target="batch">批量操作</button>
+        <button class="tab" data-target="fix">数据修复</button>
+        <button class="tab" data-target="proxy">Proxy</button>
+        <button class="tab" data-target="es">ES 查询</button>
+      </div>
+      <div id="batch" class="details active">
+        <div class="answer">Admin 上传文件 -> 创建 batch record -> 发起审批 -> 审批通过 -> Task Center 异步执行 -> 调下游批量 API -> 生成成功/失败结果和错误明细。</div>
+      </div>
+      <div id="fix" class="details">
+        <div class="answer">创建 data fix 记录 -> 填字段和业务 ID -> 审批 -> reliable-event 异步执行 -> 调 owner 服务修复 -> 更新状态并支持失败重试。</div>
+      </div>
+      <div id="proxy" class="details">
+        <div class="answer">Admin 通用接口 -> rpc_proxy/orchestration interceptor -> 前后置处理 -> 下游 RPC -> response 加工。复杂资损链路不要只靠 proxy。</div>
+      </div>
+      <div id="es" class="details">
+        <div class="answer">Admin 列表/报表 -> O-BFF 构造查询 -> ES DAO -> 转换展示字段。排障顺序：MySQL -> Canal -> Kafka/Adapter -> ES mapping -> DSL。</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>优化项重点</h2>
+      <div class="grid cols-3">
+        <div class="card"><span class="tag">Component</span><h3>配置化组件</h3><p>Proxy、Import、Export、Mask、Approval Mapping 统一配置，减少重复开发和治理漏接。</p></div>
+        <div class="card"><span class="tag green">Interceptor</span><h3>公共治理集中化</h3><p>权限、日志、脱敏、重复请求、审批信息集中在链路入口，业务代码更聚焦。</p></div>
+        <div class="card"><span class="tag amber">Batch</span><h3>批量执行拆层</h3><p>Batch Operate 管运营记录和审批，Task Center 管文件、远程调用、S3、监控。</p></div>
+        <div class="card"><span class="tag red">Contract</span><h3>下游契约检查</h3><p>导入导出前确认分页、幂等、局部失败、错误码和错误信息结构。</p></div>
+        <div class="card"><span class="tag violet">Export</span><h3>大结果集保护</h3><p>Page/Scroll/SearchAfter、稳定排序、超时和终止条件必须明确。</p></div>
+        <div class="card"><span class="tag green">Observe</span><h3>监控 label 规范</h3><p>保留低基数字段，不把 userId、policyId、手机号或原始错误打进 label。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>面试怎么说</h2>
+      <table>
+        <tr><th>问题</th><th>回答抓手</th></tr>
+        <tr><td>为什么需要 O-BFF？</td><td>Admin 跨多个下游服务，而且后台操作需要审批、脱敏、日志、批量任务和数据修复治理。</td></tr>
+        <tr><td>配置化组件怎么讲？</td><td>标准接口走 Assembly Proxy，导入导出走 Assembly Import/Export，敏感字段走 Mask，高风险操作走 Approval Mapping；复杂状态机和资损链路再手写 Manager/Biz。</td></tr>
+        <tr><td>怎么避免大泥球？</td><td>O-BFF 只做 Admin 编排和治理；Product、Order、Policy 等 owner 服务负责领域事实。</td></tr>
+        <tr><td>批量怎么可靠？</td><td>任务化、审批、切批、单条错误定位、结果下载、状态可追踪、下游幂等。</td></tr>
+        <tr><td>数据修复怎么控风险？</td><td>不直接改库，走修复记录、审批、可靠事件、owner 服务接口和失败重试。</td></tr>
+      </table>
+      <div class="answer" style="margin-top:16px">1 分钟讲法：O-BFF 是 Insurance Admin 的聚合和治理层。它先用 interceptor 做权限、日志、脱敏、重复请求和 proxy，再由 Service/Manager/Integrate 编排下游服务。我们还把标准后台能力做成配置化组件：Proxy、Import、Export、Mask、Approval Mapping。这样普通 Admin 需求能快速接入，同时高风险操作仍然有审批、审计、任务状态、失败明细和下游 owner 边界。</div>
+    </section>
+  </main>
+  <script>
+    document.querySelectorAll("button.tab").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        document.querySelectorAll("button.tab").forEach(function (x) { x.classList.remove("active"); });
+        document.querySelectorAll(".details").forEach(function (x) { x.classList.remove("active"); });
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.target).classList.add("active");
+      });
+    });
+  </script>
+</body>
+</html>

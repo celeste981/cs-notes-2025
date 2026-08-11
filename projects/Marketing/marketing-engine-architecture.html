@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marketing Engine 架构图解</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --paper: #ffffff;
+      --ink: #17202a;
+      --muted: #65717f;
+      --line: #d8dee8;
+      --blue: #2563eb;
+      --blue-soft: #eaf1ff;
+      --green: #177245;
+      --green-soft: #e7f5ed;
+      --amber: #a15c00;
+      --amber-soft: #fff2d8;
+      --red: #b42318;
+      --red-soft: #fde7e4;
+      --violet: #6d4aff;
+      --violet-soft: #f0edff;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.65;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.96);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 18px 20px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    .eyebrow,
+    .muted {
+      color: var(--muted);
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .nav a {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 5px 9px;
+      background: #fff;
+      color: var(--ink);
+      font-size: 14px;
+    }
+
+    section {
+      margin-top: 18px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 14px;
+    }
+
+    .callout {
+      padding: 16px;
+      border: 1px solid #a8c6ff;
+      border-radius: var(--radius);
+      background: var(--blue-soft);
+    }
+
+    .mini-grid,
+    .repo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .repo-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card {
+      min-height: 118px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .card strong,
+    .stage strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .repo-path {
+      margin-top: 6px;
+      word-break: break-all;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      color: #334155;
+    }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+      align-items: stretch;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 128px;
+      padding: 14px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .stage::after {
+      content: ">";
+      position: absolute;
+      right: -11px;
+      top: 45%;
+      color: #93a1b3;
+      font-weight: 700;
+    }
+
+    .stage:last-child::after {
+      content: "";
+    }
+
+    .stage.active {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .stage:nth-child(2).active {
+      border-color: var(--amber);
+      background: var(--amber-soft);
+    }
+
+    .stage:nth-child(3).active {
+      border-color: var(--green);
+      background: var(--green-soft);
+    }
+
+    .stage:nth-child(4).active {
+      border-color: var(--violet);
+      background: var(--violet-soft);
+    }
+
+    .stage:nth-child(5).active {
+      border-color: var(--red);
+      background: var(--red-soft);
+    }
+
+    .detail {
+      margin-top: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .tab {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 10px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .tab.active {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+      color: #174ea6;
+      font-weight: 600;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f1f4f8;
+    }
+
+    code {
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: #eef1f5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+    }
+
+    .answer {
+      padding: 16px;
+      border: 1px solid #a8c6ff;
+      border-radius: var(--radius);
+      background: var(--blue-soft);
+    }
+
+    @media (max-width: 900px) {
+      .summary,
+      .split,
+      .repo-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .pipeline {
+        grid-template-columns: 1fr;
+      }
+
+      .stage::after {
+        content: "v";
+        right: 16px;
+        top: auto;
+        bottom: -14px;
+      }
+
+      .stage:last-child::after {
+        content: "";
+      }
+    }
+
+    @media (max-width: 640px) {
+      .wrap {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .mini-grid {
+        grid-template-columns: 1fr;
+      }
+
+      section {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <p class="eyebrow">Projects / Marketing</p>
+      <h1>Marketing Engine 架构图解</h1>
+      <nav class="nav" aria-label="页面导航">
+        <a href="#plain">先讲人话</a>
+        <a href="#pipeline">核心流水线</a>
+        <a href="#trigger">触发方式</a>
+        <a href="#processor">Processor</a>
+        <a href="#paths">代码路径</a>
+        <a href="#answer">面试说法</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="plain" class="summary">
+      <div>
+        <h2>先讲人话</h2>
+        <p>Marketing Engine 就像一个运营自动化流水线。运营在 Admin 配一个 <code>Plan</code>，说明什么时候触发、筛哪些用户、最后做什么动作；系统按配置自动消费事件、匹配人群、执行通知/发券/数据更新。</p>
+      </div>
+      <div class="callout">
+        <h3>一句话记忆</h3>
+        <p><code>Plan = Trigger + User Group Processor + Handler</code>。面试时先讲这个公式，再展开三阶段：触发、筛选、执行。</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>核心抽象</h2>
+      <div class="mini-grid">
+        <div class="card">
+          <strong>Trigger</strong>
+          <p class="muted">决定什么时候开始：Cron、MQ、实时事件。不同入口最终都汇聚到 <code>PlanDispatch</code>。</p>
+        </div>
+        <div class="card">
+          <strong>User Group Processor</strong>
+          <p class="muted">决定对哪些用户执行：实时校验、定时拉人群、额外规则过滤，可用 AND/OR/Delay 组合。</p>
+        </div>
+        <div class="card">
+          <strong>Handler</strong>
+          <p class="muted">决定做什么动作：发通知、发券、PNAR、Chat 文案、数据清洗、组合奖励。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pipeline">
+      <h2>核心流水线</h2>
+      <p class="muted">点击每个阶段查看面试解释。</p>
+      <div class="pipeline">
+        <button class="stage active" type="button" data-title="Admin 配置 Plan" data-detail="Admin 页面把运营动作配置成 Plan：包括触发方式、用户分组、Processor 参数、Handler 名称、Handler 参数和 Rule 参数。这里体现配置化能力，避免每次运营活动都发版。">
+          <strong>1. Admin 配置</strong>
+          <span class="muted">Plan / UserGroup / Params</span>
+        </button>
+        <button class="stage" type="button" data-title="Trigger 触发" data-detail="触发入口有三类：定时任务、MQ 消息和实时事件。虽然来源不同，但会统一进入 PlanManager.PlanDispatch，减少多套执行逻辑。">
+          <strong>2. Trigger</strong>
+          <span class="muted">Cron / MQ / Event</span>
+        </button>
+        <button class="stage" type="button" data-title="User Group 筛选" data-detail="User Group 下挂多组 Processor。Realtime AND/OR 负责事件匹配，Delay 负责延迟再检查，UserList 负责定时场景下从 ES 或数据源拉出目标用户。">
+          <strong>3. User Group</strong>
+          <span class="muted">Processor 链式匹配</span>
+        </button>
+        <button class="stage" type="button" data-title="RuleCenter 复用校验" data-detail="RuleCenter 把常见业务判断抽成统一 RuleCheck 接口。Processor、Plan 触发层、Handler 执行前都能复用，避免同一条件散落在多个模块。">
+          <strong>4. RuleCenter</strong>
+          <span class="muted">通用条件判断</span>
+        </button>
+        <button class="stage" type="button" data-title="Handler 执行动作" data-detail="筛选通过后，Handler 先做 PreHandle、规则校验和参数填充，再执行发通知、发券、PNAR、数据清洗等动作，并记录执行历史和监控指标。">
+          <strong>5. Handler</strong>
+          <span class="muted">Notify / Voucher / PNAR</span>
+        </button>
+      </div>
+      <div class="detail" id="pipelineDetail">
+        <h3>Admin 配置 Plan</h3>
+        <p>Admin 页面把运营动作配置成 Plan：包括触发方式、用户分组、Processor 参数、Handler 名称、Handler 参数和 Rule 参数。这里体现配置化能力，避免每次运营活动都发版。</p>
+      </div>
+    </section>
+
+    <section id="trigger">
+      <h2>三种触发方式</h2>
+      <div class="tabs" role="tablist" aria-label="触发方式">
+        <button class="tab active" type="button" data-panel="triggerPanel" data-content="定时触发适合周期性运营活动。Scheduler 触发后，Marketing-Data 批量拉用户并推送到 Kafka，Marketing Engine 消费后进入 PlanDispatch。">定时触发</button>
+        <button class="tab" type="button" data-panel="triggerPanel" data-content="MQ 触发适合上游已经产出事件或数据的场景。Marketing-Data 或其他上游把消息推到 topic，Engine consumer 消费后进入统一执行链路。">MQ 触发</button>
+        <button class="tab" type="button" data-panel="triggerPanel" data-content="实时事件适合用户行为或业务状态即时变化。C-BFF 上报事件后进入内部 Kafka，再由 Engine 消费并匹配对应 Plan。">实时事件</button>
+      </div>
+      <div class="detail" id="triggerPanel">
+        定时触发适合周期性运营活动。Scheduler 触发后，Marketing-Data 批量拉用户并推送到 Kafka，Marketing Engine 消费后进入 PlanDispatch。
+      </div>
+    </section>
+
+    <section id="processor">
+      <h2>Processor 怎么理解</h2>
+      <div class="split">
+        <div class="card">
+          <h3>先讲人话</h3>
+          <p class="muted">Processor 就是一段可复用的筛选逻辑。配置里只存 processor code 和参数，运行时根据 code 找到具体实现，再用参数判断这个用户或这批用户是否命中。</p>
+        </div>
+        <div class="card">
+          <h3>技术关键词</h3>
+          <p class="muted">策略模式、自注册、链式执行、AND/OR/Delay 组合、JSON 参数、占位符填充。</p>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Processor 类型</th>
+            <th>适合场景</th>
+            <th>面试表达</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>EventCheck</code></td>
+            <td>实时事件/MQ 事件来了之后，判断事件字段是否匹配。</td>
+            <td>解决“这个事件是不是我要的用户动作或状态变化”。</td>
+          </tr>
+          <tr>
+            <td><code>SchedulePullUserList</code></td>
+            <td>定时任务批量圈人，从 ES 或离线数据源构造查询条件。</td>
+            <td>解决“周期性活动要先拉出一批目标用户”。</td>
+          </tr>
+          <tr>
+            <td><code>AdditionalCheck</code></td>
+            <td>触发后再做业务规则过滤，例如是否买过产品、是否在某个人群里。</td>
+            <td>解决“命中后还要不要二次过滤”。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="paths">
+      <h2>代码路径</h2>
+      <div class="repo-grid">
+        <div class="card">
+          <strong>Marketing 主服务</strong>
+          <p class="muted">Engine、RuleCenter、Handler、Processor。</p>
+          <p class="repo-path">/Users/si.chen/GolandProjects/insurance-marketing</p>
+        </div>
+        <div class="card">
+          <strong>Marketing-Data</strong>
+          <p class="muted">离线拉数、ES/S3/CSV、Kafka 推送、执行历史。</p>
+          <p class="repo-path">/Users/si.chen/GolandProjects/insurance-marketing-data</p>
+        </div>
+        <div class="card">
+          <strong>O-BFF</strong>
+          <p class="muted">Admin/Operator BFF 聚合入口，涉及后台配置、审批、批量和 proxy 时查这里。</p>
+          <p class="repo-path">/Users/si.chen/GolandProjects/insurance-operator-bff</p>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>入口</th>
+            <th>路径</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>PlanDispatch</code></td>
+            <td><code>src/engine/internal/manager/impl/plan_manager_impl.go</code></td>
+          </tr>
+          <tr>
+            <td>User Group 匹配</td>
+            <td><code>src/engine/internal/biz/impl/user_group_biz_impl.go</code></td>
+          </tr>
+          <tr>
+            <td>Processor 接口</td>
+            <td><code>src/engine/internal/processor/user_group/</code></td>
+          </tr>
+          <tr>
+            <td>Handler 插件</td>
+            <td><code>src/engine/internal/handler/</code></td>
+          </tr>
+          <tr>
+            <td>RuleCenter</td>
+            <td><code>src/basic/rule-center/</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="answer">
+      <h2>1 分钟面试说法</h2>
+      <div class="answer">
+        <p>我参与的 Marketing Engine 本质是一个配置化的运营自动化引擎。核心抽象是 Plan，一个 Plan 定义触发方式、目标用户筛选和最终执行动作。触发层支持定时、MQ 和实时事件，但最终都会汇聚到 <code>PlanDispatch</code>；筛选层通过 User Group 下的 Processor 链做 AND/OR/Delay 组合；执行层通过 Handler 插件完成通知、发券、PNAR 或数据清洗。这个设计的价值是把运营活动从代码发版变成后台配置，同时用 RuleCenter 复用通用条件判断，降低重复逻辑和改动风险。</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const detail = document.getElementById("pipelineDetail");
+    const detailTitle = detail.querySelector("h3");
+    const detailBody = detail.querySelector("p");
+    const stages = Array.from(document.querySelectorAll(".stage"));
+
+    stages.forEach((stage) => {
+      stage.addEventListener("click", () => {
+        stages.forEach((item) => item.classList.remove("active"));
+        stage.classList.add("active");
+        detailTitle.textContent = stage.dataset.title;
+        detailBody.textContent = stage.dataset.detail;
+      });
+    });
+
+    const tabs = Array.from(document.querySelectorAll(".tab"));
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const group = tabs.filter((item) => item.dataset.panel === tab.dataset.panel);
+        group.forEach((item) => item.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById(tab.dataset.panel).textContent = tab.dataset.content;
+      });
+    });
+  </script>
+</body>
+</html>

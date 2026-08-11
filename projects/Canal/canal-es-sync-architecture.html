@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Canal / ES 同步架构图解</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --ink: #17202c;
+      --muted: #5f6f83;
+      --line: #d7e0ec;
+      --blue: #2563eb;
+      --green: #0f766e;
+      --amber: #b45309;
+      --red: #b91c1c;
+      --violet: #6d28d9;
+      --shadow: 0 14px 36px rgba(22, 32, 44, .08);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); line-height: 1.55; }
+    header { background: var(--panel); border-bottom: 1px solid var(--line); padding: 34px 7vw 24px; position: sticky; top: 0; z-index: 5; }
+    .crumb { color: var(--muted); font-size: 14px; margin-bottom: 6px; }
+    h1 { margin: 0; font-size: 34px; letter-spacing: 0; }
+    .sub { margin: 10px 0 0; color: var(--muted); max-width: 980px; }
+    nav { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
+    nav a, button.tab { border: 1px solid var(--line); background: #fff; color: var(--ink); padding: 9px 13px; border-radius: 8px; text-decoration: none; font-size: 14px; cursor: pointer; }
+    main { padding: 28px 7vw 56px; }
+    section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 24px; margin-bottom: 22px; box-shadow: var(--shadow); }
+    h2 { margin: 0 0 18px; font-size: 24px; }
+    h3 { margin: 0 0 8px; font-size: 17px; }
+    .flow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; }
+    .node { border: 1px solid var(--line); border-left: 5px solid var(--blue); border-radius: 8px; padding: 13px; background: #fff; min-height: 126px; }
+    .node strong { display: block; margin-bottom: 8px; }
+    .node span { color: var(--muted); font-size: 14px; }
+    .green { border-left-color: var(--green); }
+    .amber { border-left-color: var(--amber); }
+    .red { border-left-color: var(--red); }
+    .violet { border-left-color: var(--violet); }
+    .grid { display: grid; gap: 14px; }
+    .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: #fbfdff; min-height: 122px; }
+    .card p { margin: 0; color: var(--muted); }
+    .callout { border: 1px solid #bfdbfe; border-left: 5px solid var(--blue); border-radius: 8px; padding: 16px; background: #eff6ff; margin-bottom: 16px; }
+    .callout strong { display: block; margin-bottom: 6px; }
+    .memory { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .memory div { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: #fff; min-height: 96px; }
+    .memory b { display: block; font-size: 22px; color: var(--blue); margin-bottom: 4px; }
+    .chart-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; }
+    .chart-card { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: #fbfdff; }
+    .chart-title { margin: 0 0 12px; font-weight: 700; }
+    .chart-note { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+    .bar-row { display: grid; grid-template-columns: 132px 1fr; gap: 10px; align-items: center; margin: 10px 0; }
+    .bar-row label { color: var(--ink); font-size: 14px; }
+    .bar-track { height: 28px; background: #eef2f7; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+    .bar-fill { height: 100%; color: #fff; display: flex; align-items: center; padding-left: 9px; font-size: 13px; white-space: nowrap; }
+    .bar-blue { background: var(--blue); }
+    .bar-green { background: var(--green); }
+    .bar-amber { background: var(--amber); }
+    .bar-red { background: var(--red); }
+    .bar-violet { background: var(--violet); }
+    .heatmap { display: grid; grid-template-columns: 1.1fr repeat(3, .8fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    .heatmap div { padding: 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 13px; min-height: 42px; }
+    .heatmap div:nth-child(4n) { border-right: 0; }
+    .heatmap .head { background: #f1f5f9; font-weight: 700; color: var(--ink); }
+    .risk-low { background: #ecfdf5; color: #065f46; }
+    .risk-mid { background: #fffbeb; color: #92400e; }
+    .risk-high { background: #fee2e2; color: #991b1b; }
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .compare-box { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: #fff; min-height: 136px; }
+    .compare-box strong { display: block; margin-bottom: 8px; }
+    .compare-box p { margin: 0; color: var(--muted); }
+    .tag { display: inline-block; color: #fff; background: var(--blue); padding: 3px 8px; font-size: 12px; border-radius: 999px; margin-bottom: 8px; }
+    .tag.green { background: var(--green); }
+    .tag.amber { background: var(--amber); }
+    .tag.red { background: var(--red); }
+    .tag.violet { background: var(--violet); }
+    .tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+    button.tab.active { border-color: var(--blue); color: var(--blue); background: #eff6ff; }
+    .details { display: none; }
+    .details.active { display: block; }
+    .answer { border-left: 4px solid var(--green); padding: 12px 14px; background: #ecfdf5; border-radius: 6px; color: #12312b; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; }
+    code { background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    @media (max-width: 1180px) {
+      .flow, .grid.cols-3, .grid.cols-4, .memory, .chart-grid, .bar-row, .compare { grid-template-columns: 1fr; }
+      .heatmap { grid-template-columns: 1fr; }
+      .heatmap div, .heatmap div:nth-child(4n) { border-right: 0; }
+      header { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="crumb">Projects / Canal</div>
+    <h1>Canal / ES 同步架构图解</h1>
+    <p class="sub">一句话：Canal 把 owner 服务 MySQL 的 binlog 同步成 Elasticsearch 查询视图，支撑 Insurance Admin 的宽表、复杂查询、报表和运营分析。</p>
+    <nav>
+      <a href="./canal-es-sync-architecture.md">Markdown 版</a>
+      <a href="./README.md">项目索引</a>
+      <a href="../Insurance/README.md">Insurance 总览</a>
+    </nav>
+  </header>
+  <main>
+    <section>
+      <h2>同步链路</h2>
+      <div class="callout">
+        <strong>记忆主线</strong>
+        Canal/ES 不是业务事实源，而是把 owner MySQL 的 binlog 同步成近实时查询视图。面试按“源库、binlog、server、MQ、adapter、ES、Admin 使用方”这条链路讲。
+      </div>
+      <div class="flow">
+        <div class="node"><strong>Owner MySQL</strong><span>Product / Order / Policy / Marketing 等服务写入事实数据。</span></div>
+        <div class="node green"><strong>Binlog</strong><span>MySQL 记录 insert/update/delete 事件。</span></div>
+        <div class="node amber"><strong>Canal Instance</strong><span>模拟 slave 订阅 binlog，解析变更。</span></div>
+        <div class="node red"><strong>Kafka</strong><span>承接 server 到 adapter 的消息，观察 lag。</span></div>
+        <div class="node violet"><strong>Adapter</strong><span>加载 datasource 和 sync script，消费并回查。</span></div>
+        <div class="node"><strong>Elasticsearch</strong><span>写入 index，提供近实时查询视图。</span></div>
+        <div class="node green"><strong>Admin / O-BFF</strong><span>复杂查询、报表、导出、人群筛选。</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>面试记忆法</h2>
+      <div class="memory">
+        <div><b>源</b><strong>Owner MySQL</strong><span>事实源仍在 Product/Policy/Order 等服务。</span></div>
+        <div><b>订</b><strong>Canal 订阅</strong><span>订阅 binlog，解析 insert/update/delete。</span></div>
+        <div><b>传</b><strong>Kafka 承接</strong><span>观察 lag，隔离 server 和 adapter。</span></div>
+        <div><b>查</b><strong>Adapter 回查</strong><span>按 sync script SQL 回查并组装文档。</span></div>
+        <div><b>写</b><strong>写 ES</strong><span>mapping、_id、bulk response 决定质量。</span></div>
+        <div><b>用</b><strong>Admin 查询</strong><span>O-BFF 用 ES 支撑列表、报表、导出。</span></div>
+      </div>
+      <div class="answer">1 分钟讲法：Canal 是 Insurance 的 MySQL 到 ES 同步基础设施。业务服务写 MySQL 后，Canal 订阅 binlog，把变更消息发到 Kafka，adapter 消费后按 sync script 回查 MySQL 并写入 ES。ES 支撑 Admin 的复杂查询和导出，但它是最终一致查询视图，不是事实源；数据不一致时要沿 MySQL、binlog、Canal、Kafka、adapter、ES mapping、DSL 逐层排查。</div>
+    </section>
+
+    <section>
+      <h2>配置模型</h2>
+      <div class="grid cols-4">
+        <div class="card"><span class="tag">Instance</span><h3>Canal Instance</h3><p>订阅某个 RDS/DB 的 binlog，RDS 扩容时常新增。</p></div>
+        <div class="card"><span class="tag green">Topic</span><h3>Kafka Topic</h3><p>如 <code>live-id.tp.spin_es</code>，承接同步消息。</p></div>
+        <div class="card"><span class="tag amber">Datasource</span><h3>srcDataSources</h3><p>Adapter 回查 MySQL 使用的 JDBC 数据源。</p></div>
+        <div class="card"><span class="tag red">Script</span><h3>ES sync script</h3><p>定义 index、SQL、_id、etlCondition、commitBatch。</p></div>
+        <div class="card"><span class="tag violet">Mapping</span><h3>ES Mapping</h3><p>字段类型决定查询能力，类型错可能要重建索引。</p></div>
+        <div class="card"><span class="tag">ETL</span><h3>存量同步</h3><p>历史数据刷 ES，重点看分批字段和业务主键。</p></div>
+        <div class="card"><span class="tag green">DLQ</span><h3>异常消息</h3><p>避免异常消息长期阻塞 partition。</p></div>
+        <div class="card"><span class="tag amber">Rollback</span><h3>回滚物料</h3><p>旧 script、旧 datasource、旧 instance 状态要提前归档。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>图表：同步风险热力和排障优先级</h2>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-title">链路风险热力图</div>
+          <div class="heatmap">
+            <div class="head">阶段</div><div class="head">一致性</div><div class="head">阻塞</div><div class="head">排障难度</div>
+            <div>Owner MySQL</div><div class="risk-low">低</div><div class="risk-low">低</div><div class="risk-mid">中：先确认事实源</div>
+            <div>Canal / Kafka</div><div class="risk-mid">中：最终一致</div><div class="risk-high">高：lag/partition</div><div class="risk-mid">中：看位点和 lag</div>
+            <div>Adapter / Script</div><div class="risk-high">高：SQL/_id/mapping</div><div class="risk-high">高：异常数据</div><div class="risk-high">高：日志 + DLQ</div>
+            <div>Elasticsearch</div><div class="risk-mid">中：查询视图</div><div class="risk-mid">中：bulk/mapping</div><div class="risk-high">高：mapping/DSL</div>
+          </div>
+          <p class="chart-note">这是面试排障热力图，不是线上事故统计。重点是讲清楚哪个阶段最容易导致“查不到/不同步/阻塞”。</p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">排障优先级条形图</div>
+          <div class="bar-row"><label>MySQL 事实源</label><div class="bar-track"><div class="bar-fill bar-blue" style="width:92%">先确认有无数据</div></div></div>
+          <div class="bar-row"><label>Kafka lag</label><div class="bar-track"><div class="bar-fill bar-green" style="width:84%">判断是否堆积</div></div></div>
+          <div class="bar-row"><label>Adapter 日志</label><div class="bar-track"><div class="bar-fill bar-amber" style="width:88%">定位脚本/回查异常</div></div></div>
+          <div class="bar-row"><label>DLQ</label><div class="bar-track"><div class="bar-fill bar-red" style="width:82%">看坏数据和重试</div></div></div>
+          <div class="bar-row"><label>ES DSL</label><div class="bar-track"><div class="bar-fill bar-violet" style="width:74%">最后查查询条件</div></div></div>
+          <p class="chart-note">背法：先源库，再 lag，再 adapter，再 DLQ，最后 mapping/DSL。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>操作场景</h2>
+      <div class="tabs">
+        <button class="tab active" data-target="create">新增同步</button>
+        <button class="tab" data-target="cutover">RDS 切换</button>
+        <button class="tab" data-target="etl">ETL</button>
+        <button class="tab" data-target="debug">排障</button>
+      </div>
+      <div id="create" class="details active"><div class="answer">先确认 ES mapping，再准备 sync script 和 datasource；发布后用测试数据验证 MySQL -> Canal -> Kafka -> Adapter -> ES 全链路。</div></div>
+      <div id="cutover" class="details"><div class="answer">新增 instance 初始关闭，新 script 预置 is_deleted=1，AT 先验证；切换时停旧 instance、启新 script、发布 datasource、开新 instance、观察 lag/DLQ/ES。</div></div>
+      <div id="etl" class="details"><div class="answer">ETL 是存量同步，重点看 etlCondition。聚合型宽表不能随便按表主键 id 分批，否则可能跨批次覆盖 ES 文档。</div></div>
+      <div id="debug" class="details"><div class="answer">ES 查不到数据时按层排：owner MySQL -> binlog/slave -> Canal Instance -> Kafka lag -> Adapter/DLQ -> ES mapping -> 查询 DSL。</div></div>
+    </section>
+
+    <section>
+      <h2>阻塞优化 / DLQ</h2>
+      <div class="callout">
+        <strong>Confluence 优化重点</strong>
+        同步阻塞优化的核心目标是：单条脏数据、脚本异常或 ES bulk 局部失败不能长期阻塞整个 partition；正常数据不能丢；异常数据要能进入 DLQ 并支持修复后重试或时间窗口补数。
+      </div>
+      <div class="flow">
+        <div class="node"><strong>异常识别</strong><span>区分可重试异常、ES 集群异常、脚本/数据异常。</span></div>
+        <div class="node green"><strong>ETL 阶段</strong><span>回查/转换阶段失败按单条定位，避免整批卡死。</span></div>
+        <div class="node amber"><strong>ES Bulk 阶段</strong><span>解析 BulkResponse，把失败 document 提出来。</span></div>
+        <div class="node red"><strong>DLQ Topic</strong><span>异常消息进入 <code>tp.spin_es.dlq</code> 类死信 topic。</span></div>
+        <div class="node violet"><strong>人工重试</strong><span>修脚本/修数据后按 DLQ 或时间窗口补刷。</span></div>
+        <div class="node"><strong>监控面板</strong><span>produce、retry success、final failure 指标可见。</span></div>
+        <div class="node green"><strong>正常 ACK</strong><span>好数据继续消费，异常数据不拖垮全链路。</span></div>
+      </div>
+      <table style="margin-top:16px">
+        <tr><th>优化点</th><th>面试怎么说</th></tr>
+        <tr><td>异常分层</td><td>ES 集群不可用时不能轻易 ACK 丢消息；数据/脚本异常可进 DLQ，避免阻塞其他数据。</td></tr>
+        <tr><td>BulkResponse 解析</td><td>Bulk 写 ES 可能部分成功部分失败，要把失败 item 拆出来处理。</td></tr>
+        <tr><td>DLQ 可观测</td><td>监控指标包括 DLQ 产生、重试成功、最终失败，并带 destination、config_file、es_index、exception_type。</td></tr>
+        <tr><td>补数能力</td><td>异常修复后可以按 DLQ 重试，也可以用 ETL 按时间窗口补刷。</td></tr>
+      </table>
+      <div class="chart-grid" style="margin-top:16px">
+        <div class="chart-card">
+          <div class="chart-title">阻塞优化前</div>
+          <div class="compare">
+            <div class="compare-box"><strong>坏数据卡批次</strong><p>单条脚本/mapping/数据异常可能拖住同一批或同一 partition。</p></div>
+            <div class="compare-box"><strong>ACK 后难恢复</strong><p>如果异常处理不清晰，可能出现消息确认后难以补偿。</p></div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">阻塞优化后</div>
+          <div class="compare">
+            <div class="compare-box"><strong>好数据继续走</strong><p>ETL 和 ES Bulk 分阶段拆出失败 item，正常数据不被拖住。</p></div>
+            <div class="compare-box"><strong>坏数据进 DLQ</strong><p>异常消息可观测、可重试，必要时按时间窗口补刷。</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>ES 设计和 ETL 重点</h2>
+      <div class="grid cols-3">
+        <div class="card"><span class="tag">Mapping</span><h3>字段最小化</h3><p>避免动态 mapping 膨胀，keyword 只给确实要聚合/精确查询的字段。</p></div>
+        <div class="card"><span class="tag green">Shard</span><h3>容量边界</h3><p>按业务数据量规划 shard，关注单 shard 文档数和容量，不盲目加字段。</p></div>
+        <div class="card"><span class="tag amber">ID</span><h3>文档主键</h3><p>_id 要稳定。聚合宽表不能随便用明细表主键，否则补刷可能覆盖错。</p></div>
+        <div class="card"><span class="tag red">ETL</span><h3>深分页补刷</h3><p>大表 ETL 要按 ID、时间或业务字段切片，避免深分页和跨批覆盖。</p></div>
+        <div class="card"><span class="tag violet">Template</span><h3>模板生成</h3><p>分表多、区域多时用模板生成 sync script，降低手工改错风险。</p></div>
+        <div class="card"><span class="tag green">Rollback</span><h3>切换回滚</h3><p>RDS 扩容切换前保留旧 instance、datasource、script 和回滚步骤。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>面试要点</h2>
+      <table>
+        <tr><th>问题</th><th>回答抓手</th></tr>
+        <tr><td>Canal 为什么重要？</td><td>Admin 查询复杂且跨分表，不能直接扫业务 MySQL；Canal 提供 MySQL 到 ES 的近实时查询视图。</td></tr>
+        <tr><td>是否强一致？</td><td>不是。ES 是最终一致查询视图，事实源仍是 owner MySQL。</td></tr>
+        <tr><td>sync script 关注什么？</td><td>dataSourceKey、destination、groupId、_index、_id、sql、etlCondition、commitBatch。</td></tr>
+        <tr><td>RDS 扩容怎么做？</td><td>新 instance、新 datasource、新 script、AT 验证、切换、观察、可回滚。</td></tr>
+        <tr><td>同步阻塞怎么优化？</td><td>异常分层处理，ETL/ES Bulk 两阶段拆分，失败 item 进 DLQ，正常数据继续消费，修复后支持重试和时间窗口补数。</td></tr>
+      </table>
+    </section>
+  </main>
+  <script>
+    document.querySelectorAll("button.tab").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        document.querySelectorAll("button.tab").forEach(function (x) { x.classList.remove("active"); });
+        document.querySelectorAll(".details").forEach(function (x) { x.classList.remove("active"); });
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.target).classList.add("active");
+      });
+    });
+  </script>
+</body>
+</html>

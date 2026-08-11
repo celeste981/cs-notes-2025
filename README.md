@@ -4,9 +4,11 @@
 
 ## 目录
 
+- [career-transition-plan.md](career-transition-plan.md)：三个月双岗位（Senior Backend + AI Agent Backend）求职定位、节奏和产物。
+- [reviews/three-month-weekly-plan.md](reviews/three-month-weekly-plan.md)：适合在职准备的逐周计划、验收与缩减规则。
 - `interview/`：技术题、行为题、算法题、系统设计题和专题复习。
 - `resume/`：简历版本、简历 bullet 优化、JD 匹配结果。
-- `projects/`：项目架构、项目亮点、STAR 故事、可讲案例。
+- `projects/`：项目架构、项目亮点、STAR 故事、可讲案例；先从 [`projects/README.md`](projects/README.md) 或 [`projects/project-map.html`](projects/project-map.html) 进入。
 - `templates/`：常用整理模板。
 - `reviews/`：模拟面试反馈、复盘记录、阶段性问题清单。
 

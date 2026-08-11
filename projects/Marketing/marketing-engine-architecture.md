@@ -1,5 +1,23 @@
 # Marketing Engine 架构梳理
 
+> 可视化图解：[Marketing Engine 架构图解](./marketing-engine-architecture.html)
+>
+> 所属项目索引：[Marketing 项目材料](./README.md)
+
+## 专项补充文档
+
+如果只想背深挖点，可以直接看这三篇：
+
+- [Marketing Engine 核心知识深挖](./marketing-engine-key-knowledge-deep-dive.md)：Plan、Trigger、Processor、Handler、RuleCenter 和服务边界。
+- [Marketing Processor / Handler / RuleCenter 深挖](./marketing-processor-handler-rulecenter-deep-dive.md)：筛选链、执行动作、RuleCenter 边界、重复触达防守。
+- [Marketing 稳定性和排障深挖](./marketing-reliability-troubleshooting-deep-dive.md)：OOMKilled、大批量人群、Kafka、Handler 失败和配置风险。
+- [Marketing PlanDispatch 生命周期深挖](./marketing-plan-dispatch-lifecycle-deep-dive.md)：PlanRawMessage、PlanDispatch、Trigger 分支、DoExecuteHandler 和异常记录。
+- [Marketing User Group Processor 链深挖](./marketing-user-group-processor-chain-deep-dive.md)：Processor 注册、三类 Processor、ConditionType、Delay 和筛选优化。
+- [Marketing 用户名单 Redis / Roaring Bitmap 深挖](./marketing-user-list-redis-roaring-bitmap-deep-dive.md)：用户名单缓存、Redis 二级 Roaring Bitmap、LocalCache、RemoteLocalCache 和缓存一致性。
+- [Marketing Handler 执行和风险控制深挖](./marketing-handler-risk-control-deep-dive.md)：Handler 接口、Notify、Voucher、PNAR、HandlerRules 和资损/骚扰风险。
+- [Marketing Consumer / Batch History 可靠性深挖](./marketing-consumer-batch-history-reliability-deep-dive.md)：consumer 注册、topic 并发限制、batch history 对账和异常状态。
+- [Marketing 技术优化点和深挖清单](./marketing-technical-optimization-points.md)：配置化、并发、批次对账、防重复、可观测性和配置风险。
+
 ## 一、Engine 是什么？一句话定位
 
 **Marketing Engine 是一个可配置的运营自动化引擎**——通过 Admin 页面配置 Plan（计划），定义"什么时候、对哪些用户、做什么动作"，系统自动执行，无需开发介入。
@@ -7,6 +25,31 @@
 面试开场：
 
 > 我负责的 Marketing Engine 本质上是一个 **事件驱动 + 定时调度的规则引擎**，核心抽象是 Plan。每个 Plan 定义了触发条件（Trigger）、目标用户筛选（User Group Processor）、和执行动作（Handler），形成一条完整的 `触发 → 筛选 → 执行` 流水线。
+
+---
+
+## 项目路径速查
+
+| 项目 | 本机路径 | 这里看什么 |
+|---|---|---|
+| `insurance-marketing` | `/Users/si.chen/GolandProjects/insurance-marketing` | Marketing 主服务，Engine、RuleCenter、Group Center、Notify/Reward/Repo 都在这里。 |
+| `insurance-marketing-data` | `/Users/si.chen/GolandProjects/insurance-marketing-data` | 定时/离线场景下批量拉用户、查 ES/S3/CSV、写离线执行历史、推 Kafka。 |
+| `insurance-marketing-api` | `/Users/si.chen/GolandProjects/insurance-marketing-api` | Marketing 主服务 API/proto。 |
+| `insurance-marketing-data-api` | `/Users/si.chen/GolandProjects/insurance-marketing-data-api` | Marketing-Data API/proto。 |
+| `insurance-operator-bff` | `/Users/si.chen/GolandProjects/insurance-operator-bff` | O-BFF / Admin 聚合入口；涉及后台页面、审批、批量、proxy 时优先确认这里。 |
+
+常用代码入口：
+
+| 想看什么 | 推荐路径 |
+|---|---|
+| Engine 统一入口 `PlanDispatch` | `/Users/si.chen/GolandProjects/insurance-marketing/src/engine/internal/manager/impl/plan_manager_impl.go` |
+| PlanManager 接口 | `/Users/si.chen/GolandProjects/insurance-marketing/src/engine/internal/manager/plan_manager.go` |
+| User Group Processor 链式匹配 | `/Users/si.chen/GolandProjects/insurance-marketing/src/engine/internal/biz/impl/user_group_biz_impl.go` |
+| Processor 三类接口 | `/Users/si.chen/GolandProjects/insurance-marketing/src/engine/internal/processor/user_group/` |
+| Handler 插件 | `/Users/si.chen/GolandProjects/insurance-marketing/src/engine/internal/handler/` |
+| RuleCenter | `/Users/si.chen/GolandProjects/insurance-marketing/src/basic/rule-center/` |
+| Kafka consumer | `/Users/si.chen/GolandProjects/insurance-marketing/src/engine/consumer/inner/default_consumer.go` |
+| Marketing-Data 离线拉数编排 | `/Users/si.chen/GolandProjects/insurance-marketing-data/src/manager/impl/offline_data_fetch_manager_impl.go` |
 
 ---
 
@@ -193,6 +236,8 @@ PlanDispatch(message)
 
 ## 六、目录结构
 
+主服务路径：`/Users/si.chen/GolandProjects/insurance-marketing`
+
 ```
 src/engine/
 ├── boot/                          # 引擎启动引导
@@ -241,3 +286,8 @@ Processor Params、Handler Params 都是 JSON，运营在 Admin 页面配置即�
 5. **执行能力**："Handler 插件化，覆盖推送、发券、数据清洗等场景"
 6. **RuleCenter**："通用条件判断中心，被筛选层、触发层、执行层复用"
 7. **设计亮点**："策略模式 + 自注册、配置化驱动、三种触发殊途同归"
+
+## 九、可讲排障案例
+
+- [Marketing 容器 OOMKilled 排障](./oom-killed-troubleshooting-star.md)：适合回答稳定性、线上/测试环境排障、容器内存、Go 服务内存问题、如何区分业务 panic 和系统级退出。
+- [OOMKilled 排障图解](./oom-killed-troubleshooting-star.html)：适合快速复习证据链和口述顺序。

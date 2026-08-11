@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Approval Center / Task Center 架构图解</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --ink: #17202c;
+      --muted: #5f6f83;
+      --line: #d7e0ec;
+      --blue: #2563eb;
+      --green: #0f766e;
+      --amber: #b45309;
+      --red: #b91c1c;
+      --violet: #6d28d9;
+      --shadow: 0 14px 36px rgba(22, 32, 44, .08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 34px 7vw 24px;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .crumb { color: var(--muted); font-size: 14px; margin-bottom: 6px; }
+    h1 { margin: 0; font-size: 34px; letter-spacing: 0; }
+    .sub { margin: 10px 0 0; color: var(--muted); max-width: 980px; }
+    nav { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
+    nav a, button.tab {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      padding: 9px 13px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    main { padding: 28px 7vw 56px; }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 22px;
+      box-shadow: var(--shadow);
+    }
+    h2 { margin: 0 0 18px; font-size: 24px; }
+    h3 { margin: 0 0 8px; font-size: 17px; }
+    .callout {
+      border: 1px solid #bfdbfe;
+      border-left: 5px solid var(--blue);
+      border-radius: 8px;
+      padding: 16px;
+      background: #eff6ff;
+      margin-bottom: 16px;
+    }
+    .callout strong { display: block; margin-bottom: 6px; }
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .big-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      background: #fbfdff;
+      min-height: 180px;
+    }
+    .big-card h3 { font-size: 20px; }
+    .big-card ul { margin: 10px 0 0; padding-left: 20px; color: var(--muted); }
+    .tag {
+      display: inline-block;
+      color: #fff;
+      background: var(--blue);
+      padding: 3px 8px;
+      font-size: 12px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+    .tag.green { background: var(--green); }
+    .tag.amber { background: var(--amber); }
+    .tag.red { background: var(--red); }
+    .tag.violet { background: var(--violet); }
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+    .node {
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--blue);
+      border-radius: 8px;
+      padding: 13px;
+      background: #fff;
+      min-height: 126px;
+    }
+    .node strong { display: block; margin-bottom: 8px; }
+    .node span { color: var(--muted); font-size: 14px; }
+    .node.green { border-left-color: var(--green); }
+    .node.amber { border-left-color: var(--amber); }
+    .node.red { border-left-color: var(--red); }
+    .node.violet { border-left-color: var(--violet); }
+    .grid { display: grid; gap: 14px; }
+    .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fbfdff;
+      min-height: 132px;
+    }
+    .card p { margin: 0; color: var(--muted); }
+    .timeline { display: grid; gap: 10px; }
+    .step {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 12px;
+      align-items: start;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+    }
+    .num {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--blue);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+    }
+    .step p { margin: 4px 0 0; color: var(--muted); }
+    .tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+    button.tab.active { border-color: var(--blue); color: var(--blue); background: #eff6ff; }
+    .details { display: none; }
+    .details.active { display: block; }
+    .answer {
+      border-left: 4px solid var(--green);
+      padding: 12px 14px;
+      background: #ecfdf5;
+      border-radius: 6px;
+      color: #12312b;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; }
+    code { background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    @media (max-width: 1100px) {
+      header { position: static; }
+      .compare, .flow, .grid.cols-3, .grid.cols-4 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="crumb">Projects / O-BFF</div>
+    <h1>Approval Center / Task Center 架构图解</h1>
+    <p class="sub">一句话：Approval Center 管“能不能执行”，Task Center 管“允许后怎么异步执行、切批、限流、记录结果”。</p>
+    <nav>
+      <a href="./o-bff-approval-task-center-architecture.md">Markdown 版</a>
+      <a href="./o-bff-governance-centers-deep-dive.md">治理中心深挖</a>
+      <a href="./README.md">项目索引</a>
+    </nav>
+  </header>
+  <main>
+    <section>
+      <h2>先分清职责</h2>
+      <div class="compare">
+        <div class="big-card">
+          <span class="tag violet">Approval</span>
+          <h3>Approval Center</h3>
+          <p>审批中心是后台高风险操作的状态机和审计层。</p>
+          <ul>
+            <li>谁提交</li>
+            <li>谁审批</li>
+            <li>是否通过</li>
+            <li>审批历史</li>
+            <li>通过后触发什么</li>
+          </ul>
+        </div>
+        <div class="big-card">
+          <span class="tag green">Task</span>
+          <h3>Task Center</h3>
+          <p>任务中心是配置驱动的批处理执行引擎。</p>
+          <ul>
+            <li>解析文件</li>
+            <li>分页/scroll 导出</li>
+            <li>切批和限流</li>
+            <li>调用下游 RPC</li>
+            <li>生成结果和错误明细</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>协作链路</h2>
+      <div class="callout">
+        <strong>记忆主线</strong>
+        Admin 提交后先形成操作记录；高风险动作先审批；审批通过后才进入执行；执行成功失败由 Task Center 和下游返回决定。
+      </div>
+      <div class="flow">
+        <div class="node"><strong>Admin</strong><span>提交批量导入、导出、数据修复或高风险更新。</span></div>
+        <div class="node green"><strong>O-BFF</strong><span>Interceptor + Service + Manager 建立操作上下文。</span></div>
+        <div class="node amber"><strong>Batch Operate</strong><span>记录这次批量操作，关联审批和结果。</span></div>
+        <div class="node violet"><strong>Approval Center</strong><span>创建审批实例，推进节点，记录审批历史。</span></div>
+        <div class="node red"><strong>Operator Executer</strong><span>审批通过后衔接到执行链路。</span></div>
+        <div class="node green"><strong>Task Center</strong><span>切批、限流、调用下游、收集结果。</span></div>
+        <div class="node"><strong>Owner Service</strong><span>Product、Policy、Order、Marketing 等领域事实源。</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Approval Center 内部模型</h2>
+      <div class="grid cols-4">
+        <div class="card"><span class="tag">Definition</span><h3>流程定义</h3><p>定义业务如何审批、谁审批、节点怎么走。</p></div>
+        <div class="card"><span class="tag violet">Instance</span><h3>审批实例</h3><p>某一次真实提交，例如一次 CSV 导入或数据修复。</p></div>
+        <div class="card"><span class="tag amber">Node</span><h3>审批节点</h3><p>当前审批进度、审批人、通过或拒绝状态。</p></div>
+        <div class="card"><span class="tag red">Mapping</span><h3>业务映射</h3><p>把 API / biz_type 映射到审批业务类型。</p></div>
+      </div>
+      <table style="margin-top:16px">
+        <tr><th>状态</th><th>含义</th><th>面试提醒</th></tr>
+        <tr><td>Pending</td><td>等待审批。</td><td>这时不能执行高风险动作。</td></tr>
+        <tr><td>Approved</td><td>审批放行。</td><td>只代表允许执行，不代表业务成功。</td></tr>
+        <tr><td>Rejected</td><td>审批拒绝。</td><td>停止后续执行，保留审计记录。</td></tr>
+        <tr><td>Executed</td><td>后续执行完成。</td><td>执行结果要看 Task/Event/Downstream。</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Task Center 内部模型</h2>
+      <div class="grid cols-3">
+        <div class="card"><span class="tag">Config</span><h3>batch_task_config</h3><p>定义 remote_type、字段映射、导入导出策略和额外配置。</p></div>
+        <div class="card"><span class="tag green">Parser</span><h3>文件 / 导出解析</h3><p>导入解析 CSV，导出按 Page/Scroll 查询。</p></div>
+        <div class="card"><span class="tag amber">Splitter</span><h3>切批</h3><p>把大批量拆成小批次，降低单次请求压力。</p></div>
+        <div class="card"><span class="tag red">RateConfig</span><h3>限流熔断</h3><p>控制 batch size、并发、QPS、timeout、circuit。</p></div>
+        <div class="card"><span class="tag violet">Executor</span><h3>远程执行</h3><p>调用下游 RPC、Assembly 或 JSON RPC。</p></div>
+        <div class="card"><span class="tag green">Result</span><h3>结果沉淀</h3><p>成功数、失败数、错误明细、S3 文件、download record、monitor。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>典型批量导入</h2>
+      <div class="timeline">
+        <div class="step"><div class="num">1</div><div><strong>Admin 上传 CSV</strong><p>提交批量操作，O-BFF 校验文件和业务类型。</p></div></div>
+        <div class="step"><div class="num">2</div><div><strong>创建 Batch Record</strong><p>记录这次操作，后续可查状态和下载结果。</p></div></div>
+        <div class="step"><div class="num">3</div><div><strong>Approval Center 审批</strong><p>高风险操作先审批，拒绝则不执行。</p></div></div>
+        <div class="step"><div class="num">4</div><div><strong>Task Center 执行</strong><p>解析文件、字段转换、切批、限流、调用下游。</p></div></div>
+        <div class="step"><div class="num">5</div><div><strong>结果文件</strong><p>汇总成功失败、错误原因，上传 S3 并提供下载。</p></div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>面试追问</h2>
+      <div class="tabs">
+        <button class="tab active" data-target="q1">审批通过等于成功吗</button>
+        <button class="tab" data-target="q2">为什么要 Task Center</button>
+        <button class="tab" data-target="q3">部分失败怎么办</button>
+        <button class="tab" data-target="q4">怎么避免重复执行</button>
+      </div>
+      <div id="q1" class="details active"><div class="answer">不等于。审批通过只是风险控制层放行，实际业务执行还要看 Task Center、reliable event 或下游 RPC 的结果。</div></div>
+      <div id="q2" class="details"><div class="answer">批量和长耗时任务不能同步卡住页面。Task Center 统一处理文件、切批、限流、下游调用、S3 和错误明细。</div></div>
+      <div id="q3" class="details"><div class="answer">下游最好返回局部失败结构，Task Center 汇总成功数、失败数和单条错误，生成结果文件供 Admin 下载。</div></div>
+      <div id="q4" class="details"><div class="answer">靠重复请求控制、batch/task record、业务唯一键和下游幂等一起防。不能只依赖前端按钮禁用。</div></div>
+    </section>
+
+    <section>
+      <h2>1 分钟讲法</h2>
+      <div class="answer">
+        Approval Center 和 Task Center 是 O-BFF 后台治理的两个不同层次。Approval Center 负责高风险操作的审批状态机，解决“能不能执行、谁审批、怎么审计”；Task Center 负责审批通过后的异步批处理，解决“怎么解析文件、怎么切批、怎么限流、怎么调下游、怎么记录成功失败和错误明细”。审批通过不等于执行成功，这两个状态要分开看。
+      </div>
+    </section>
+  </main>
+  <script>
+    document.querySelectorAll("button.tab").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        document.querySelectorAll("button.tab").forEach(function (x) { x.classList.remove("active"); });
+        document.querySelectorAll(".details").forEach(function (x) { x.classList.remove("active"); });
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.target).classList.add("active");
+      });
+    });
+  </script>
+</body>
+</html>

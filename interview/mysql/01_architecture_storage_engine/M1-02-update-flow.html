@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UPDATE 执行流程可视化</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --paper: #ffffff;
+      --ink: #17202a;
+      --muted: #65717f;
+      --line: #d9dee7;
+      --blue: #2f6fdf;
+      --blue-soft: #e8f0ff;
+      --green: #17845b;
+      --green-soft: #e7f6ee;
+      --amber: #b86b00;
+      --amber-soft: #fff3da;
+      --red: #c3423f;
+      --red-soft: #fdebea;
+      --violet: #6956c2;
+      --violet-soft: #f0edff;
+      --radius: 8px;
+      --shadow: 0 16px 36px rgba(23, 32, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.65;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+
+    .header-inner,
+    main {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 14px 20px;
+    }
+
+    .header-inner {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 22px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin-bottom: 8px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+      letter-spacing: 0;
+    }
+
+    .eyebrow,
+    .muted {
+      color: var(--muted);
+    }
+
+    .nav {
+      display: flex;
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f9fafc;
+      white-space: nowrap;
+    }
+
+    .nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      padding: 6px 10px;
+      border-radius: 6px;
+    }
+
+    .nav a:hover {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    main {
+      padding-top: 22px;
+      padding-bottom: 48px;
+    }
+
+    section {
+      margin-top: 18px;
+      padding: 22px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    section:first-child {
+      margin-top: 0;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      gap: 18px;
+    }
+
+    .box {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .sql {
+      padding: 14px;
+      border-radius: var(--radius);
+      background: #151b26;
+      color: #f8fafc;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      overflow-x: auto;
+      margin-top: 12px;
+    }
+
+    .key-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .key {
+      min-height: 98px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .key strong {
+      color: var(--blue);
+    }
+
+    .flow-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 330px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .step {
+      min-height: 104px;
+      padding: 12px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      text-align: left;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .step:hover,
+    .step.active {
+      transform: translateY(-2px);
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .step small {
+      display: block;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .detail {
+      min-height: 266px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: #fff;
+      font-size: 13px;
+    }
+
+    .layers {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .layer {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .layer.server {
+      border-top: 5px solid var(--blue);
+    }
+
+    .layer.innodb {
+      border-top: 5px solid var(--green);
+    }
+
+    .log-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .log-card {
+      min-height: 158px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .log-card.undo {
+      background: var(--amber-soft);
+    }
+
+    .log-card.redo {
+      background: var(--green-soft);
+    }
+
+    .log-card.binlog {
+      background: var(--violet-soft);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f2f4f8;
+    }
+
+    .commit-line {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .commit-step {
+      position: relative;
+      min-height: 120px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .commit-step strong {
+      color: var(--blue);
+    }
+
+    .answer {
+      padding: 16px;
+      border: 1px solid #a8c6ff;
+      border-radius: var(--radius);
+      background: var(--blue-soft);
+    }
+
+    code {
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: #eef1f5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    @media (max-width: 900px) {
+      .header-inner,
+      .hero,
+      .flow-layout,
+      .layers {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        overflow-x: auto;
+      }
+
+      .key-grid,
+      .flow,
+      .log-grid,
+      .commit-line {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .header-inner,
+      main {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      section {
+        padding: 16px;
+      }
+
+      .key-grid,
+      .flow,
+      .log-grid,
+      .commit-line {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div>
+        <p class="eyebrow">MySQL 面试可视化 · 基础架构与存储引擎</p>
+        <h1>一条 UPDATE 语句的完整执行流程</h1>
+      </div>
+      <nav class="nav" aria-label="页面导航">
+        <a href="#flow">执行流程</a>
+        <a href="#logs">三类日志</a>
+        <a href="#commit">两阶段提交</a>
+        <a href="#answer">面试说法</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="hero">
+        <div class="box">
+          <h2>先抓住一句话</h2>
+          <p>
+            <code>UPDATE</code> 不是直接改磁盘。它先走 Server 层解析和优化，再让 InnoDB 找到行、加锁、写 <code>undo log</code>、改 Buffer Pool 里的页、写 <code>redo log</code>；Server 层还写 <code>binlog</code>。提交时用两阶段提交保证 redo log 和 binlog 一致。
+          </p>
+          <div class="sql">update user set name = 'Tom' where id = 10;</div>
+        </div>
+        <div class="box">
+          <h2>你最容易混的点</h2>
+          <div class="key-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="key"><strong>undo</strong><p class="muted">保存旧值，负责回滚和 MVCC。</p></div>
+            <div class="key"><strong>redo</strong><p class="muted">保存物理修改，负责崩溃恢复。</p></div>
+            <div class="key"><strong>binlog</strong><p class="muted">保存逻辑变更，负责复制和恢复。</p></div>
+            <div class="key"><strong>脏页</strong><p class="muted">内存页已改，磁盘页还没改。</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="flow">
+      <h2>1. 点击看 UPDATE 的每一步</h2>
+      <div class="flow-layout">
+        <div class="flow" id="flowSteps"></div>
+        <aside class="detail" id="stepDetail" aria-live="polite"></aside>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. Server 层和 InnoDB 层怎么分工</h2>
+      <div class="layers">
+        <div class="layer server">
+          <h3>Server 层</h3>
+          <p class="muted">负责连接、解析、优化、执行调度和 binlog。它知道 SQL 要做什么，但不直接管理 InnoDB 的数据页和事务细节。</p>
+          <div class="tag-row">
+            <span class="tag">连接器</span>
+            <span class="tag">分析器</span>
+            <span class="tag">优化器</span>
+            <span class="tag">执行器</span>
+            <span class="tag">binlog</span>
+          </div>
+        </div>
+        <div class="layer innodb">
+          <h3>InnoDB 层</h3>
+          <p class="muted">负责 B+ 树定位、行锁、Buffer Pool、undo log、redo log 和刷脏页。真正的数据修改发生在这里。</p>
+          <div class="tag-row">
+            <span class="tag">Buffer Pool</span>
+            <span class="tag">行锁</span>
+            <span class="tag">undo log</span>
+            <span class="tag">redo log</span>
+            <span class="tag">Page Cleaner</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="logs">
+      <h2>3. 三类日志一句话区分</h2>
+      <div class="log-grid">
+        <div class="log-card undo">
+          <h3>undo log</h3>
+          <p>改之前先记旧值。</p>
+          <p class="muted">事务失败时能回滚；快照读需要旧版本时，也可以顺着 undo 找。</p>
+        </div>
+        <div class="log-card redo">
+          <h3>redo log</h3>
+          <p>改了哪个页、哪个位置。</p>
+          <p class="muted">脏页没刷盘也不怕宕机，重启后可以靠 redo 重放。</p>
+        </div>
+        <div class="log-card binlog">
+          <h3>binlog</h3>
+          <p>这条 SQL 或这次行变更做了什么。</p>
+          <p class="muted">主从复制、数据恢复、订阅变更依赖它。</p>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>日志</th>
+            <th>所属层</th>
+            <th>核心用途</th>
+            <th>面试记忆</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>undo log</td>
+            <td>InnoDB</td>
+            <td>回滚、MVCC</td>
+            <td>后悔药</td>
+          </tr>
+          <tr>
+            <td>redo log</td>
+            <td>InnoDB</td>
+            <td>崩溃恢复</td>
+            <td>宕机保险</td>
+          </tr>
+          <tr>
+            <td>binlog</td>
+            <td>Server 层</td>
+            <td>主从复制、数据恢复</td>
+            <td>业务流水</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="commit">
+      <h2>4. 为什么要两阶段提交</h2>
+      <p class="muted">核心是让 InnoDB 的 redo log 和 Server 层的 binlog 对同一个事务保持一致。</p>
+      <div class="commit-line">
+        <div class="commit-step">
+          <h3>第一阶段</h3>
+          <p><strong>redo prepare</strong></p>
+          <p class="muted">InnoDB 先把 redo log 写到 prepare 状态。</p>
+        </div>
+        <div class="commit-step">
+          <h3>第二阶段</h3>
+          <p><strong>写 binlog</strong></p>
+          <p class="muted">Server 层写入 binlog，保证复制和恢复能看到这次变更。</p>
+        </div>
+        <div class="commit-step">
+          <h3>第三步</h3>
+          <p><strong>redo commit</strong></p>
+          <p class="muted">InnoDB 把 redo 标记为 commit，事务提交完成。</p>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>宕机场景</th>
+            <th>恢复时怎么判断</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>redo 只有 prepare，binlog 不存在</td>
+            <td>说明 binlog 没成功，事务回滚。</td>
+          </tr>
+          <tr>
+            <td>redo 只有 prepare，binlog 存在</td>
+            <td>说明 binlog 已成功，事务提交。</td>
+          </tr>
+          <tr>
+            <td>redo 已经 commit</td>
+            <td>事务提交。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="answer">
+      <h2>5. 面试 1 分钟说法</h2>
+      <div class="answer">
+        <p>
+          一条 UPDATE 先经过 Server 层的连接器、分析器、优化器和执行器。执行器调用 InnoDB 后，InnoDB 根据索引找到目标记录，把数据页读入 Buffer Pool，对记录加排他锁。修改前先写 undo log 保存旧版本，然后修改 Buffer Pool 中的数据页，页变成脏页，同时写 redo log buffer。Server 层还会生成 binlog event，先写入 binlog cache。事务提交时通过两阶段提交保证 redo log 和 binlog 一致：redo prepare、写 binlog、redo commit。脏页不需要提交时立刻刷盘，后台线程会异步刷盘，只要 redo log 可靠落盘，宕机后就能恢复。
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const steps = [
+      {
+        title: "1. Server 层解析",
+        sub: "连接器、分析器、优化器、执行器",
+        detail: "UPDATE 的前半段和 SELECT 类似：先认证连接，再做词法语法分析，优化器选择执行计划，执行器准备调用存储引擎。",
+        tags: ["Server 层", "执行计划"]
+      },
+      {
+        title: "2. 定位数据页",
+        sub: "通过索引或扫描找到行",
+        detail: "InnoDB 根据执行计划找目标记录。如果数据页在 Buffer Pool 中就直接用，不在就从磁盘读入 Buffer Pool。",
+        tags: ["B+ 树", "Buffer Pool"]
+      },
+      {
+        title: "3. 当前读并加锁",
+        sub: "X 锁 / next-key lock",
+        detail: "UPDATE 要读最新版本并修改，所以是当前读。命中唯一索引通常锁目标记录，范围更新在 RR 下可能加 next-key lock。",
+        tags: ["当前读", "排他锁"]
+      },
+      {
+        title: "4. 写 undo log",
+        sub: "保存旧版本",
+        detail: "修改前先记录旧值。事务回滚时靠 undo 恢复，MVCC 快照读也可能通过 undo 找旧版本。",
+        tags: ["回滚", "MVCC"]
+      },
+      {
+        title: "5. 改 Buffer Pool",
+        sub: "产生脏页",
+        detail: "InnoDB 先改内存里的数据页，不直接随机写磁盘。内存页和磁盘页不一致时，这个页叫脏页。",
+        tags: ["脏页", "内存修改"]
+      },
+      {
+        title: "6. 写 redo log",
+        sub: "保证崩溃恢复",
+        detail: "redo log 记录偏物理的页修改。只要 redo 可靠落盘，即使脏页没刷盘，重启后也能恢复。",
+        tags: ["WAL", "崩溃恢复"]
+      },
+      {
+        title: "7. 写 binlog",
+        sub: "复制和恢复",
+        detail: "binlog 属于 Server 层，记录逻辑变更，用于主从复制、数据恢复和订阅变更。",
+        tags: ["Server 层", "主从复制"]
+      },
+      {
+        title: "8. 两阶段提交",
+        sub: "redo 与 binlog 一致",
+        detail: "提交时先 redo prepare，再写 binlog，最后 redo commit。这样宕机恢复时能判断事务该提交还是回滚。",
+        tags: ["prepare", "commit"]
+      },
+      {
+        title: "9. 后台刷脏页",
+        sub: "不是提交时立刻刷",
+        detail: "事务提交不要求脏页马上写回磁盘。后台线程会在 redo 空间压力、Buffer Pool 淘汰、系统空闲或正常关闭时刷盘。",
+        tags: ["Page Cleaner", "异步刷盘"]
+      }
+    ];
+
+    const flow = document.getElementById("flowSteps");
+    const detail = document.getElementById("stepDetail");
+
+    function renderDetail(index) {
+      const item = steps[index];
+      detail.innerHTML = `
+        <h3>${item.title}</h3>
+        <p>${item.detail}</p>
+        <div class="tag-row">${item.tags.map((tag) => `<span class="tag">${tag}</span>`).join("")}</div>
+      `;
+      document.querySelectorAll(".step").forEach((node, stepIndex) => {
+        node.classList.toggle("active", stepIndex === index);
+      });
+    }
+
+    steps.forEach((item, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "step";
+      button.innerHTML = `<strong>${item.title}</strong><small>${item.sub}</small>`;
+      button.addEventListener("click", () => renderDetail(index));
+      flow.appendChild(button);
+    });
+
+    renderDetail(0);
+  </script>
+</body>
+</html>

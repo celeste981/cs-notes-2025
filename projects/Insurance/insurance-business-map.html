@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Insurance 业务地图</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --text: #17202c;
+      --muted: #66768a;
+      --line: #d7e0ec;
+      --blue: #2f6fed;
+      --green: #12805c;
+      --orange: #b86416;
+      --red: #b42318;
+      --ink: #23364f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+    header {
+      padding: 28px clamp(18px, 4vw, 48px) 18px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    .crumb { color: var(--muted); font-size: 14px; margin-bottom: 6px; }
+    h1 { margin: 0; font-size: clamp(28px, 5vw, 44px); letter-spacing: 0; }
+    .subtitle { max-width: 980px; margin: 10px 0 0; color: var(--muted); font-size: 17px; }
+    main { padding: 22px clamp(14px, 4vw, 48px) 42px; }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(260px, 360px) 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 20px;
+    }
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+    .layer {
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--blue);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbfdff;
+    }
+    .layer.core { border-left-color: var(--green); }
+    .layer.data { border-left-color: var(--orange); }
+    .layer.external { border-left-color: var(--red); }
+    .layer-title {
+      font-weight: 750;
+      margin-bottom: 8px;
+      color: var(--ink);
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chip {
+      border: 1px solid #c8d5e5;
+      background: #fff;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 14px;
+      color: #223044;
+      cursor: pointer;
+      user-select: none;
+    }
+    .chip.active {
+      border-color: var(--blue);
+      background: #eaf1ff;
+      color: #174ea6;
+      font-weight: 700;
+    }
+    .flow-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    button {
+      border: 1px solid #c8d5e5;
+      background: #fff;
+      color: #213044;
+      border-radius: 7px;
+      padding: 9px 12px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    button.active {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+      font-weight: 700;
+    }
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .node {
+      min-height: 84px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 12px;
+      position: relative;
+    }
+    .node::after {
+      content: ">";
+      position: absolute;
+      right: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #8a98aa;
+      font-weight: 700;
+    }
+    .node:last-child::after { content: ""; }
+    .node strong { display: block; margin-bottom: 5px; color: var(--ink); }
+    .node span { color: var(--muted); font-size: 14px; }
+    .detail {
+      background: #fbfdff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      min-height: 170px;
+    }
+    .detail h3 { margin: 0 0 8px; font-size: 18px; }
+    .detail p { margin: 8px 0; }
+    .detail ul { margin: 8px 0 0; padding-left: 20px; }
+    .source {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: 1fr; }
+      .node::after { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="crumb">Projects / Insurance</div>
+    <h1>Insurance 业务地图</h1>
+    <p class="subtitle">用于面试快速复习：入口层、核心服务、数据支撑、外部集成，以及几条能讲清楚的端到端业务流程。</p>
+  </header>
+  <main>
+    <div class="grid">
+      <section class="panel">
+        <h2>服务分层</h2>
+        <div class="stack">
+          <div class="layer">
+            <div class="layer-title">入口层 / BFF</div>
+            <div class="chips">
+              <span class="chip active" data-service="obff">O-BFF</span>
+              <span class="chip" data-service="bbff">B-BFF</span>
+              <span class="chip" data-service="cbff">C-BFF</span>
+              <span class="chip" data-service="lbff">L-BFF</span>
+            </div>
+          </div>
+          <div class="layer core">
+            <div class="layer-title">核心业务层</div>
+            <div class="chips">
+              <span class="chip" data-service="product">Product</span>
+              <span class="chip" data-service="order">Order</span>
+              <span class="chip" data-service="policy">Policy</span>
+              <span class="chip" data-service="promotion">Promotion</span>
+              <span class="chip" data-service="account">Account</span>
+            </div>
+          </div>
+          <div class="layer data">
+            <div class="layer-title">营销与数据层</div>
+            <div class="chips">
+              <span class="chip" data-service="marketing">Marketing</span>
+              <span class="chip" data-service="marketingData">Marketing-Data</span>
+              <span class="chip" data-service="canal">Canal / ES</span>
+            </div>
+          </div>
+          <div class="layer external">
+            <div class="layer-title">外部集成层</div>
+            <div class="chips">
+              <span class="chip" data-service="ea">EA / UEA</span>
+              <span class="chip" data-service="risk">Risk Control</span>
+              <span class="chip" data-service="document">Document / Notify</span>
+            </div>
+          </div>
+        </div>
+        <div class="source">点击服务名查看面试定位和追问点。</div>
+      </section>
+
+      <section class="panel">
+        <h2>端到端流程</h2>
+        <div class="flow-tabs">
+          <button class="active" data-flow="admin">Admin 后台</button>
+          <button data-flow="marketing">Marketing</button>
+          <button data-flow="mp">MP 嵌入式</button>
+          <button data-flow="consumer">C 端购买</button>
+          <button data-flow="logistics">物流保险</button>
+          <button data-flow="canal">Canal/ES</button>
+        </div>
+        <div class="flow" id="flow"></div>
+        <div class="detail" id="detail"></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const services = {
+      obff: {
+        title: "O-BFF",
+        text: "Insurance Admin 的后台聚合入口，统一承接审批、批量、任务中心、数据修复、ES 查询和下游 RPC 编排。",
+        points: ["代码入口：insurance-operator-bff/src/service、manager、integrate", "面试抓手：后台高风险操作要审批、审计和异步任务化"]
+      },
+      bbff: {
+        title: "B-BFF",
+        text: "对接 MP、DP、CL 等渠道，用插件化工作流完成产品查询、保费计算、营销、订单创建和状态同步。",
+        points: ["关键模块：workflow、plugins、plugin_selector、consumer", "面试抓手：插件化解决渠道/市场/产品差异"]
+      },
+      cbff: {
+        title: "C-BFF",
+        text: "C 端用户购买和管理保险的聚合层，覆盖产品展示、报价、支付、投保、保单和理赔。",
+        points: ["关键模块：motor、accident_health、sales、region_handler", "面试抓手：多产品线和多地区差异隔离"]
+      },
+      lbff: {
+        title: "L-BFF",
+        text: "物流保险编排层，消费 OFG/OMS/OA/ODO 消息，通过适配器、过滤器和状态机推进保险订单。",
+        points: ["关键模型：Consumer + Adaptor Chain + Filter Chain + State Machine + Processor", "本地缺口：当前未找到本地 clone，主要来自 Confluence"]
+      },
+      product: {
+        title: "Product",
+        text: "产品、计划、保障、费率和价格规则的核心服务，是售前链路的重要事实源。",
+        points: ["代码入口：insurance-product/src/product/service、engine、biz", "追问点：保费计算器、plan/benefit/pricing/category"]
+      },
+      order: {
+        title: "Order",
+        text: "保险订单、支付、财务、invoice 等订单域能力，重点是状态机和支付回调幂等。",
+        points: ["代码入口：insurance-order/src/order、payment、financial、invoice", "追问点：支付成功后如何触发投保和补偿"]
+      },
+      policy: {
+        title: "Policy",
+        text: "保单生命周期服务，覆盖投保、查询、理赔、取消/批改和续保。",
+        points: ["代码入口：policy_center、policy_claim、policy_endorse、policy_renewal", "追问点：保单/理赔/取消状态机"]
+      },
+      promotion: {
+        title: "Promotion / Voucher",
+        text: "活动、优惠券、库存预算和价格中心能力，支撑购买链路和 Marketing 发券。",
+        points: ["代码入口：promotion、voucher、repertory、price_center_v2", "追问点：活动有效性、库存预算、券优先级"]
+      },
+      account: {
+        title: "Account",
+        text: "统一账户域，维护 SPIN 内部 account 与外部用户信息映射。",
+        points: ["代码入口：account/auth/login/kyc biz", "追问点：为什么订单、保单、营销都需要 accountId"]
+      },
+      marketing: {
+        title: "Marketing",
+        text: "运营自动化服务，用 Plan Engine 承接定时、MQ、RPC 事件，执行通知、发券、PNAR 和推荐。",
+        points: ["代码入口：insurance-marketing/src/engine、basic、common/integrate", "追问点：Trigger、Processor、RuleCenter、Handler"]
+      },
+      marketingData: {
+        title: "Marketing-Data",
+        text: "Marketing 的离线数据助手，负责 ES/S3/CSV/Hive/Insight 拉数、batch history 和 Kafka 推送。",
+        points: ["代码入口：OfflineDataFetchAndPush、QueryEsList、offline_data_fetch_handler", "追问点：batch_id 幂等和异步执行"]
+      },
+      canal: {
+        title: "Canal / ES",
+        text: "MySQL binlog 到 ES 的同步链路，为 Admin 查询、宽表和报表提供近实时视图。",
+        points: ["链路：MySQL -> Canal -> Kafka -> Adapter -> ES", "追问点：ES 不是事实源，排障要分层定位"]
+      },
+      ea: {
+        title: "EA / UEA",
+        text: "外部 broker / insurer 防腐层，封装签名、字段转换、调用记录和保司差异。",
+        points: ["代码入口：broker、broker_v2、converter、httpclient", "追问点：为什么核心服务不直接对接保司"]
+      },
+      risk: {
+        title: "Risk Control",
+        text: "风控、金额一致性、风险校验和部分清结算相关能力。",
+        points: ["常见调用点：售前、支付前、投保前、理赔", "追问点：风控失败是阻断还是降级"]
+      },
+      document: {
+        title: "Document / Notify",
+        text: "电子保单、通知和外部消息触达的支撑能力。",
+        points: ["常见调用点：投保成功、理赔状态、续保提醒", "追问点：通知失败是否影响主链路"]
+      }
+    };
+
+    const flows = {
+      admin: {
+        title: "Admin 后台链路",
+        nodes: [
+          ["Insurance Admin", "运营/客服/Dev 操作"],
+          ["O-BFF", "权限、审批、批量、任务"],
+          ["Manager/Biz", "业务编排"],
+          ["Downstream", "Product/Order/Policy/Marketing"],
+          ["DB/ES/Kafka", "查询、配置、异步执行"]
+        ],
+        answer: "O-BFF 的价值是统一后台入口。它不只是转发 RPC，还要把审批、批量、数据修复、脱敏和审计统一收口。"
+      },
+      marketing: {
+        title: "Marketing 计划执行",
+        nodes: [
+          ["Admin Plan", "配置计划和人群"],
+          ["Marketing Engine", "定时/MQ/RPC 触发"],
+          ["Processor", "筛人和规则校验"],
+          ["Handler", "通知、发券、PNAR"],
+          ["Result", "批次、监控、历史"]
+        ],
+        answer: "Marketing 是执行引擎，Marketing-Data 是离线数据助手。拆分后，大查询和文件处理不会拖慢主执行链路。"
+      },
+      mp: {
+        title: "MP 嵌入式保险",
+        nodes: [
+          ["PDP/Checkout", "白名单、产品、保费"],
+          ["B-BFF", "插件工作流"],
+          ["Product/Promotion", "授权、定价、营销"],
+          ["ODO Kafka", "创单/状态消息"],
+          ["Order/Policy", "订单和投保"]
+        ],
+        answer: "B-BFF 用插件化工作流承接 MP/DP/CL 差异，把授权、数据填充、售前校验、保费计算、营销和订单创建串起来。"
+      },
+      consumer: {
+        title: "C 端购买闭环",
+        nodes: [
+          ["App/H5", "产品展示"],
+          ["C-BFF", "用户侧聚合"],
+          ["Product/Promotion", "产品、保费、优惠"],
+          ["Order/Payment", "下单和支付"],
+          ["Policy/EA", "投保出单"]
+        ],
+        answer: "C-BFF 的难点是多产品线和多地区差异，前端只看统一接口，后端通过 service/manager/biz/integrate 编排。"
+      },
+      logistics: {
+        title: "物流保险",
+        nodes: [
+          ["OFG/OMS", "物流状态消息"],
+          ["L-BFF Consumer", "可靠消费"],
+          ["Adaptor/Filter", "补数据、校验规则"],
+          ["State Machine", "RSF/DLV/ORS/SLS+"],
+          ["Processor", "确认订单、理赔报案"]
+        ],
+        answer: "物流保险是事件驱动链路，重点是可靠消费、幂等、过滤器短路和状态机恢复。"
+      },
+      canal: {
+        title: "Canal / ES 同步",
+        nodes: [
+          ["MySQL", "业务事实源"],
+          ["binlog", "变更日志"],
+          ["Canal", "解析并投递"],
+          ["Adapter", "sync script 写 ES"],
+          ["Admin Query", "ES 查询/报表"]
+        ],
+        answer: "ES 是查询视图不是事实源。排障要看 MySQL、binlog、Canal instance、Kafka、Adapter、mapping 和 DSL。"
+      }
+    };
+
+    function renderService(key) {
+      const item = services[key];
+      document.querySelectorAll(".chip").forEach(chip => chip.classList.toggle("active", chip.dataset.service === key));
+      const detail = document.getElementById("detail");
+      detail.innerHTML = `<h3>${item.title}</h3><p>${item.text}</p><ul>${item.points.map(p => `<li>${p}</li>`).join("")}</ul>`;
+    }
+
+    function renderFlow(key) {
+      const item = flows[key];
+      document.querySelectorAll("button[data-flow]").forEach(btn => btn.classList.toggle("active", btn.dataset.flow === key));
+      document.getElementById("flow").innerHTML = item.nodes.map(n => `<div class="node"><strong>${n[0]}</strong><span>${n[1]}</span></div>`).join("");
+      document.getElementById("detail").innerHTML = `<h3>${item.title}</h3><p>${item.answer}</p>`;
+    }
+
+    document.querySelectorAll(".chip").forEach(chip => chip.addEventListener("click", () => renderService(chip.dataset.service)));
+    document.querySelectorAll("button[data-flow]").forEach(btn => btn.addEventListener("click", () => renderFlow(btn.dataset.flow)));
+    renderFlow("admin");
+  </script>
+</body>
+</html>

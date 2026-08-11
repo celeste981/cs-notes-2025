@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>公司服务中的 MySQL 使用视角</title>
+  <style>
+    :root{--bg:#f5f7fb;--paper:#fff;--ink:#17202a;--muted:#667085;--line:#d9e0ea;--blue:#2563eb;--blue-soft:#eaf1ff;--green:#0f7b63;--green-soft:#e7f6ee;--amber:#a86405;--amber-soft:#fff3da;--red:#b42318;--red-soft:#ffebe8;--violet:#6b4bbf;--violet-soft:#f1edff;--radius:8px}
+    *{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.65}header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.96);border-bottom:1px solid var(--line);backdrop-filter:blur(10px)}.inner,main{max-width:1180px;margin:0 auto;padding:16px 20px}h1,h2,h3,p{margin:0}h1{font-size:25px;line-height:1.25}h2{font-size:20px;margin-bottom:10px}h3{font-size:17px}.eyebrow,.muted{color:var(--muted)}nav{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}nav a{color:var(--blue);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:#fff}section{margin-top:18px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:18px}.hero{display:grid;grid-template-columns:1.3fr .7fr;gap:14px}.headline{font-size:18px}.memory{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.card{border:1px solid var(--line);border-radius:var(--radius);padding:14px;background:#fbfcff}.card strong{display:block;margin-bottom:6px}.map{display:flex;align-items:stretch;gap:8px;overflow-x:auto;padding:4px 0}.dot{min-width:130px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;padding:10px;text-align:center;position:relative}.dot span{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:999px;background:var(--blue);color:#fff;font-weight:700}.dot p{font-size:13px;margin-top:6px}.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.step{min-height:138px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;padding:12px;text-align:left;cursor:pointer;font:inherit}.step .num{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:999px;background:#eef2f7;color:#344054;font-weight:700}.step strong{display:block;margin-top:8px}.step em{display:block;margin-top:6px;color:var(--muted);font-style:normal;font-size:14px}.step.active{border-color:var(--blue);background:var(--blue-soft)}.detail{display:none;margin-top:12px;border:1px solid #bcd0ff;border-radius:var(--radius);background:var(--blue-soft);padding:15px}.detail.active{display:block}.why{margin-top:10px;padding:10px;border-radius:var(--radius);background:#fff;border:1px solid #c9d8ff}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}table{width:100%;border-collapse:collapse;background:#fff}th,td{border:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}th{background:#f0f3f8;width:140px}ul{margin:8px 0 0;padding-left:20px}li{margin:5px 0}.danger{border-color:#ffc4bd;background:var(--red-soft)}.qa{border:1px solid var(--line);border-radius:var(--radius);background:#fbfcff;margin-top:10px;overflow:hidden}.qa button{width:100%;border:0;background:#fff;text-align:left;padding:12px;font:inherit;cursor:pointer;color:var(--ink)}.qa p{display:none;padding:12px;border-top:1px solid var(--line);background:var(--green-soft)}.qa.open p{display:block}.answer{border:1px solid #a8c6ff;border-radius:var(--radius);background:var(--blue-soft);padding:15px}.answer .short{padding:10px;border-radius:var(--radius);background:#fff;border:1px solid #c9d8ff;margin-bottom:10px}@media(max-width:900px){.hero,.memory,.grid,.flow{grid-template-columns:1fr}.inner,main{padding-left:12px;padding-right:12px}.dot{min-width:110px}}
+    .chart-section{background:linear-gradient(180deg,#ffffff,#f8fafc);border:1px solid #dbeafe;box-shadow:0 14px 36px rgba(15,23,42,.07)}
+    .chart-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:16px}
+    .chart-head p{max-width:780px;margin:6px 0 0;color:var(--muted);line-height:1.75}
+    .chart-grid{display:grid;grid-template-columns:1.35fr .9fr;gap:16px;align-items:stretch}
+    .lane-board,.bar-board,.takeaway-board{border:1px solid var(--line);border-radius:var(--radius);background:#fff;padding:16px;box-shadow:0 10px 26px rgba(15,23,42,.05)}
+    .lane-board h3,.bar-board h3,.takeaway-board h3{margin:0 0 12px;font-size:15px;color:#0f172a}
+    .lane{display:grid;grid-template-columns:112px 1fr;gap:12px;align-items:start;margin:12px 0}
+    .lane-name{font-weight:800;border-radius:var(--radius);padding:10px 12px;text-align:center;border:1px solid transparent}
+    .lane-name.blue{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+    .lane-name.green{background:#ecfdf5;color:#047857;border-color:#bbf7d0}
+    .lane-name.amber{background:#fffbeb;color:#b45309;border-color:#fde68a}
+    .lane-items{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;position:relative}
+    .lane-item{min-height:54px;border:1px solid #e5e7eb;border-radius:var(--radius);background:#f8fafc;padding:10px;font-size:13px;line-height:1.45;display:flex;align-items:center;justify-content:center;text-align:center;color:#334155;font-weight:650}
+    .lane-item + .lane-item{position:relative}
+    .lane-item + .lane-item:before{content:'>';position:absolute;left:-10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-weight:900;font-size:14px}
+    .bar-row{display:grid;grid-template-columns:112px 1fr 40px;gap:10px;align-items:center;margin:11px 0;font-size:13px}
+    .bar-label{color:#334155;font-weight:700}
+    .bar-track{height:14px;background:#e5e7eb;border-radius:999px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(15,23,42,.08)}
+    .bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#2563eb,#14b8a6)}
+    .bar-value{font-variant-numeric:tabular-nums;color:#64748b;text-align:right;font-size:12px}
+    .takeaway-board{margin-top:16px;background:#f8fafc}
+    .takeaway-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0;padding:0;list-style:none}
+    .takeaway-list li{border:1px solid #e2e8f0;border-radius:var(--radius);background:#fff;padding:12px 13px;color:#334155;line-height:1.65;font-size:14px}
+    .takeaway-list li:before{content:'记';display:inline-flex;width:22px;height:22px;border-radius:999px;align-items:center;justify-content:center;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:900;margin-right:7px}
+    @media(max-width:820px){.chart-head{display:block}.chart-grid{grid-template-columns:1fr}.lane{grid-template-columns:1fr}.lane-items{grid-template-columns:1fr}.lane-item + .lane-item:before{content:'v';left:50%;top:-13px;transform:translateX(-50%)}.bar-row{grid-template-columns:96px 1fr 34px}.takeaway-list{grid-template-columns:1fr}}
+
+  </style>
+</head>
+<body>
+  <header><div class="inner"><p class="eyebrow">MySQL 项目结合</p><h1>公司服务中的 MySQL 使用视角</h1><nav><a href="#map">总览</a><a href="#chart">图表</a><a href="#flow">流程</a><a href="#layers">对比</a><a href="#mistakes">易错</a><a href="#quiz">自测</a><a href="#answer">口述</a></nav></div></header>
+  <main>
+    <section id="map" class="hero"><div><h2>一句话定位</h2><p class="headline">项目回答不要只背 MySQL 组件，要把“事实源、连接池、事务、binlog 同步、ES/缓存视图”串成真实服务链路。</p><div class="memory"><div class="card"><strong>类比记忆</strong><p class="muted">MySQL 是原始账本，ES 和缓存是复印件或查询视图；排查时不能只看复印件判断账本有没有记录。</p></div><div class="card"><strong>记忆口诀</strong><p class="muted">先事实源，再同步链路，最后查询视图。</p></div><div class="card"><strong>答题骨架</strong><p class="muted">业务库是否有数据 -&gt; binlog 是否消费 -&gt; 下游是否写入 -&gt; 查询 DSL/缓存是否正确。</p></div></div></div><div class="card"><strong>怎么用这页</strong><p class="muted">先看流程地图，再点每一步。最后用“30 秒短答”和“1 分钟口述”自测。</p></div></section>
+    <section><h2>流程地图</h2><div class="map"><div class="dot"><span>1</span><p>服务入口</p></div><div class="dot"><span>2</span><p>连接池</p></div><div class="dot"><span>3</span><p>事务边界</p></div><div class="dot"><span>4</span><p>binlog 同步</p></div><div class="dot"><span>5</span><p>查询视图</p></div></div></section>
+
+    <section id="chart" class="chart-section">
+      <div class="chart-head">
+        <div><h2>图表记忆：业务服务里的 MySQL 链路</h2><p>项目题要讲清楚 MySQL 是事实源，ES/缓存通常是查询视图，排障要沿链路逐段定位。</p></div>
+      </div>
+      <div class="chart-grid">
+        <div class="lane-board"><h3>分层 / 流程图</h3>
+          <div class="lane">
+            <div class="lane-name blue">写入链路</div>
+            <div class="lane-items"><div class="lane-item">服务入口</div><div class="lane-item">连接池</div><div class="lane-item">事务边界</div><div class="lane-item">提交到 MySQL</div></div>
+          </div>
+          <div class="lane">
+            <div class="lane-name green">同步链路</div>
+            <div class="lane-items"><div class="lane-item">binlog 产生</div><div class="lane-item">Canal/CDC 消费</div><div class="lane-item">转换字段</div><div class="lane-item">写入 ES/缓存</div></div>
+          </div>
+          <div class="lane">
+            <div class="lane-name amber">排障顺序</div>
+            <div class="lane-items"><div class="lane-item">先查事实源</div><div class="lane-item">再查同步延迟</div><div class="lane-item">最后查查询视图</div></div>
+          </div>
+        </div>
+        <div class="bar-board"><h3>项目讲述可信度来源</h3><div class="bar-row"><div class="bar-label">事实源定位</div><div class="bar-track"><div class="bar-fill" style="width:95%"></div></div><div class="bar-value">95</div></div><div class="bar-row"><div class="bar-label">事务边界</div><div class="bar-track"><div class="bar-fill" style="width:82%"></div></div><div class="bar-value">82</div></div><div class="bar-row"><div class="bar-label">binlog/CDC</div><div class="bar-track"><div class="bar-fill" style="width:88%"></div></div><div class="bar-value">88</div></div><div class="bar-row"><div class="bar-label">ES/缓存一致性</div><div class="bar-track"><div class="bar-fill" style="width:86%"></div></div><div class="bar-value">86</div></div>
+        </div>
+      </div>
+      <div class="takeaway-board"><h3>看图记 3 句话</h3><ul class="takeaway-list"><li>先说明 MySQL 在项目里承担事实源，而不是只背组件名。</li><li>排查链路按“业务库 -&gt; binlog -&gt; 下游视图”讲。</li><li>涉及公司项目细节时，没有证据的吞吐量和指标标记为待补充。</li></ul></div>
+    </section>
+    <section id="flow"><h2>点击式流程拆解</h2><div class="flow"><button class="step active" data-step="0"><span class="num">1</span><strong>服务入口</strong><em>O-BFF 或业务服务接收请求并访问 MySQL。</em></button><button class="step" data-step="1"><span class="num">2</span><strong>连接池</strong><em>控制连接复用、超时、最大连接数。</em></button><button class="step" data-step="2"><span class="num">3</span><strong>事务边界</strong><em>关键写操作用事务保证状态一致。</em></button><button class="step" data-step="3"><span class="num">4</span><strong>binlog 同步</strong><em>Canal 等组件消费 binlog，同步 ES 或其他视图。</em></button><button class="step" data-step="4"><span class="num">5</span><strong>查询视图</strong><em>ES/缓存服务查询性能，但不是事实源。</em></button></div><article class="detail active" data-panel="0"><p class="eyebrow">第 1 步</p><h3>服务入口</h3><p>O-BFF 或业务服务接收请求并访问 MySQL。</p><div class="why"><strong>为什么要记：</strong>说明你知道数据库不是孤立存在。</div></article><article class="detail" data-panel="1"><p class="eyebrow">第 2 步</p><h3>连接池</h3><p>控制连接复用、超时、最大连接数。</p><div class="why"><strong>为什么要记：</strong>连接打满和慢 SQL 经常互相影响。</div></article><article class="detail" data-panel="2"><p class="eyebrow">第 3 步</p><h3>事务边界</h3><p>关键写操作用事务保证状态一致。</p><div class="why"><strong>为什么要记：</strong>不要把所有操作都放进一个大事务。</div></article><article class="detail" data-panel="3"><p class="eyebrow">第 4 步</p><h3>binlog 同步</h3><p>Canal 等组件消费 binlog，同步 ES 或其他视图。</p><div class="why"><strong>为什么要记：</strong>binlog 链路延迟会导致查询视图滞后。</div></article><article class="detail" data-panel="4"><p class="eyebrow">第 5 步</p><h3>查询视图</h3><p>ES/缓存服务查询性能，但不是事实源。</p><div class="why"><strong>为什么要记：</strong>数据不一致时先回到 MySQL 核对。</div></article></section>
+    <section id="layers" class="grid"><div><h2>对比记忆</h2><table><tbody><tr><th>事实源 MySQL</th><td>业务真实状态，以事务提交为准。</td><td>排查第一站。</td></tr><tr><th>ES/缓存</th><td>派生查询视图，可能延迟或 mapping 错。</td><td>适合查，不适合作为唯一事实判断。</td></tr></tbody></table></div><div><h2>先记住这几个抓手</h2><ul><li><strong>事实源 MySQL</strong>：业务真实状态，以事务提交为准。</li><li><strong>ES/缓存</strong>：派生查询视图，可能延迟或 mapping 错。</li></ul></div></section>
+    <section id="mistakes" class="danger"><h2>容易说错</h2><ul><li>只看 ES 判断业务数据不存在。</li><li>忽略连接池耗尽。</li><li>把 Canal 延迟误判为 MySQL 写失败。</li></ul></section>
+    <section id="quiz"><h2>3 个自测问题</h2><div class="qa"><button data-answer="0">ES 查不到数据，第一步看哪里？</button><p id="ans-0">先查业务 MySQL 是否有事实数据。</p></div><div class="qa"><button data-answer="1">binlog 同步解决什么？</button><p id="ans-1">把 MySQL 变更同步给下游视图。</p></div><div class="qa"><button data-answer="2">连接池为什么影响数据库稳定性？</button><p id="ans-2">连接过多会打满 MySQL，过少会让服务等待。</p></div></section>
+    <section id="answer"><h2>面试口述</h2><div class="answer"><div class="short"><strong>30 秒短答：</strong>结合项目时，我会先说明 MySQL 是业务事实源，服务通过连接池访问数据库，关键写操作用事务保护一致性。</div><p>结合项目时，我会先说明 MySQL 是业务事实源，服务通过连接池访问数据库，关键写操作用事务保护一致性。下游 ES 或缓存通常通过 binlog/Canal 同步形成查询视图，所以视图可能延迟或 mapping 错。排查数据问题时先确认 MySQL 是否有数据，再看 binlog 消费、下游写入和查询条件。</p></div></section>
+  </main>
+  <script>
+    const steps=Array.from(document.querySelectorAll('.step'));const panels=Array.from(document.querySelectorAll('.detail'));
+    steps.forEach((step)=>step.addEventListener('click',()=>{steps.forEach((s)=>s.classList.remove('active'));panels.forEach((p)=>p.classList.remove('active'));step.classList.add('active');document.querySelector('[data-panel="'+step.dataset.step+'"]').classList.add('active')}));
+    document.querySelectorAll('[data-answer]').forEach((button)=>button.addEventListener('click',()=>button.parentElement.classList.toggle('open')));
+  </script>
+</body>
+</html>

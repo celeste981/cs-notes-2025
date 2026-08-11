@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{TITLE}} 可视化解释</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --paper: #ffffff;
+      --ink: #17202a;
+      --muted: #65717f;
+      --line: #d9dee7;
+      --blue: #2f6fdf;
+      --blue-soft: #e8f0ff;
+      --green: #17845b;
+      --green-soft: #e7f6ee;
+      --amber: #b86b00;
+      --amber-soft: #fff3da;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.65;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+
+    .header-inner,
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 16px 20px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 22px;
+      line-height: 1.25;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+
+    h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    .eyebrow,
+    .muted {
+      color: var(--muted);
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .nav a {
+      color: var(--blue);
+      text-decoration: none;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 5px 9px;
+      background: #fff;
+    }
+
+    section {
+      margin-top: 18px;
+      padding: 20px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .card {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+      min-height: 120px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .step {
+      padding: 14px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .step.active {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .panel {
+      margin-top: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .compare {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+    }
+
+    .compare th,
+    .compare td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .compare th {
+      background: #f2f4f8;
+    }
+
+    .answer {
+      padding: 16px;
+      border: 1px solid #a8c6ff;
+      border-radius: var(--radius);
+      background: var(--blue-soft);
+    }
+
+    code {
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: #eef1f5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    @media (max-width: 760px) {
+      .grid,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .header-inner,
+      main {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <p class="eyebrow">{{CATEGORY}}</p>
+      <h1>{{TITLE}}</h1>
+      <nav class="nav" aria-label="页面导航">
+        <a href="#plain">先讲人话</a>
+        <a href="#flow">流程拆解</a>
+        <a href="#compare">对比记忆</a>
+        <a href="#answer">面试说法</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section id="plain">
+      <h2>先讲人话</h2>
+      <p>{{PLAIN_LANGUAGE_EXPLANATION}}</p>
+      <div class="grid">
+        <div class="card">
+          <h3>你先记住</h3>
+          <p class="muted">{{KEY_POINT_1}}</p>
+        </div>
+        <div class="card">
+          <h3>容易卡住</h3>
+          <p class="muted">{{COMMON_CONFUSION}}</p>
+        </div>
+        <div class="card">
+          <h3>面试抓手</h3>
+          <p class="muted">{{INTERVIEW_HOOK}}</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="flow">
+      <h2>流程拆解</h2>
+      <p class="muted">点击步骤查看解释。</p>
+      <div class="flow">
+        <button class="step active" type="button" data-detail="{{STEP_1_DETAIL}}">{{STEP_1}}</button>
+        <button class="step" type="button" data-detail="{{STEP_2_DETAIL}}">{{STEP_2}}</button>
+        <button class="step" type="button" data-detail="{{STEP_3_DETAIL}}">{{STEP_3}}</button>
+        <button class="step" type="button" data-detail="{{STEP_4_DETAIL}}">{{STEP_4}}</button>
+      </div>
+      <div class="panel" id="detail">{{STEP_1_DETAIL}}</div>
+    </section>
+
+    <section id="compare">
+      <h2>对比记忆</h2>
+      <table class="compare">
+        <thead>
+          <tr>
+            <th>概念</th>
+            <th>人话解释</th>
+            <th>面试表达</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{{CONCEPT_A}}</td>
+            <td>{{CONCEPT_A_PLAIN}}</td>
+            <td>{{CONCEPT_A_INTERVIEW}}</td>
+          </tr>
+          <tr>
+            <td>{{CONCEPT_B}}</td>
+            <td>{{CONCEPT_B_PLAIN}}</td>
+            <td>{{CONCEPT_B_INTERVIEW}}</td>
+          </tr>
+          <tr>
+            <td>{{CONCEPT_C}}</td>
+            <td>{{CONCEPT_C_PLAIN}}</td>
+            <td>{{CONCEPT_C_INTERVIEW}}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="answer">
+      <h2>面试说法</h2>
+      <div class="answer">
+        <p>{{INTERVIEW_ANSWER}}</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const detail = document.getElementById("detail");
+    const steps = Array.from(document.querySelectorAll(".step"));
+
+    steps.forEach((step) => {
+      step.addEventListener("click", () => {
+        steps.forEach((item) => item.classList.remove("active"));
+        step.classList.add("active");
+        detail.textContent = step.dataset.detail;
+      });
+    });
+  </script>
+</body>
+</html>

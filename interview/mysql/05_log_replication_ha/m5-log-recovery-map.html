@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MySQL 日志与崩溃恢复可视化</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --paper: #ffffff;
+      --ink: #17202a;
+      --muted: #637083;
+      --line: #d8dee9;
+      --blue: #2563eb;
+      --blue-soft: #eaf1ff;
+      --green: #11745d;
+      --green-soft: #e6f5f0;
+      --amber: #a45f00;
+      --amber-soft: #fff2d7;
+      --red: #b42318;
+      --red-soft: #ffebe8;
+      --violet: #6846b8;
+      --violet-soft: #f1edff;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.62;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.96);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+
+    .inner,
+    main {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 16px 20px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .nav,
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .pill,
+    button.pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--ink);
+      padding: 7px 11px;
+      text-decoration: none;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button.pill.active {
+      color: var(--blue);
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    section {
+      margin-top: 18px;
+    }
+
+    .panel {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .log-box,
+    .step,
+    .mini {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcff;
+      padding: 14px;
+    }
+
+    .log-box.redo {
+      border-top: 4px solid var(--red);
+    }
+
+    .log-box.undo {
+      border-top: 4px solid var(--green);
+    }
+
+    .log-box.binlog {
+      border-top: 4px solid var(--violet);
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .step {
+      position: relative;
+      min-height: 128px;
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .step::after {
+      content: "->";
+      position: absolute;
+      right: -13px;
+      top: 42%;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .step:last-child::after {
+      content: "";
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f0f3f8;
+    }
+
+    .tab-content {
+      margin-top: 12px;
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .answer {
+      border: 1px solid #b7ccff;
+      border-radius: var(--radius);
+      background: var(--blue-soft);
+      padding: 14px;
+    }
+
+    code {
+      border-radius: 4px;
+      background: #eef1f5;
+      padding: 1px 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    @media (max-width: 860px) {
+      .grid-3,
+      .grid-2,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .step::after {
+        content: "";
+      }
+
+      .inner,
+      main {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="inner">
+      <p class="muted">MySQL 05 日志、复制与高可用</p>
+      <h1>日志与崩溃恢复可视化</h1>
+      <nav class="nav" aria-label="页面导航">
+        <a class="pill" href="#logs">三大日志</a>
+        <a class="pill" href="#commit">两阶段提交</a>
+        <a class="pill" href="#recovery">崩溃恢复</a>
+        <a class="pill" href="#params">刷盘参数</a>
+        <a class="pill" href="#answer">面试口述</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section id="logs" class="panel">
+      <h2>三大日志先分工</h2>
+      <div class="grid-3">
+        <div class="log-box undo">
+          <h3>undo log</h3>
+          <p>记录旧版本，用于事务回滚和 MVCC。它回答的是：如果事务失败，怎么恢复到修改前？快照读要看旧版本怎么办？</p>
+        </div>
+        <div class="log-box redo">
+          <h3>redo log</h3>
+          <p>记录数据页物理修改，用于崩溃恢复。它回答的是：已提交事务的脏页还没刷盘，宕机后怎么补回来？</p>
+        </div>
+        <div class="log-box binlog">
+          <h3>binlog</h3>
+          <p>记录 Server 层逻辑变更，用于主从复制和归档恢复。它回答的是：从库怎么同步？误操作怎么按时间点恢复？</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="commit" class="panel">
+      <h2>一次 UPDATE 的提交路径</h2>
+      <p class="muted">重点记住：数据页不必在提交时刷盘，但 redo 和 binlog 的一致性必须处理好。</p>
+      <div class="flow">
+        <div class="step"><strong>1. 写 undo</strong><p>保存旧值，准备回滚和 MVCC 版本链。</p></div>
+        <div class="step"><strong>2. 改内存页</strong><p>修改 Buffer Pool 中的数据页，产生脏页。</p></div>
+        <div class="step"><strong>3. redo prepare</strong><p>InnoDB 写 redo，事务进入 prepare 状态。</p></div>
+        <div class="step"><strong>4. binlog fsync</strong><p>Server 层写入完整 binlog event。</p></div>
+        <div class="step"><strong>5. redo commit</strong><p>InnoDB 将事务标记为最终提交。</p></div>
+      </div>
+    </section>
+
+    <section id="recovery" class="panel">
+      <h2>崩溃恢复推演</h2>
+      <div class="tabs" role="group" aria-label="崩溃点切换">
+        <button class="pill active" data-tab="before">redo prepare 前</button>
+        <button class="pill" data-tab="afterPrepare">redo prepare 后</button>
+        <button class="pill" data-tab="afterBinlog">binlog 完整后</button>
+        <button class="pill" data-tab="afterCommit">redo commit 后</button>
+      </div>
+
+      <div class="tab-content active" id="tab-before">
+        <div class="answer">
+          <h3>结论：回滚或忽略</h3>
+          <p>redo 还没有进入 prepare，binlog 也没有完整记录，说明事务没有进入可提交状态。恢复时不会把它当成成功事务。</p>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-afterPrepare">
+        <div class="answer">
+          <h3>结论：看 binlog，没有完整 XID 就回滚</h3>
+          <p>redo 已经 prepare，但 binlog 没有完整事务记录。为了避免主库出现从库没有的数据，恢复时回滚这个事务。</p>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-afterBinlog">
+        <div class="answer">
+          <h3>结论：提交</h3>
+          <p>redo 是 prepare，但 binlog 已完整写入。binlog 可能已经被从库或恢复流程消费，所以主库恢复时也必须提交。</p>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-afterCommit">
+        <div class="answer">
+          <h3>结论：提交</h3>
+          <p>redo 已经 commit，binlog 也完整，这是正常已提交事务。恢复时根据 redo 前滚即可。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="params" class="panel">
+      <h2>刷盘参数怎么选</h2>
+      <div class="grid-2">
+        <div class="mini">
+          <h3><code>innodb_flush_log_at_trx_commit</code></h3>
+          <table>
+            <tr><th>值</th><th>含义</th><th>风险</th></tr>
+            <tr><td>1</td><td>每次提交 redo write + fsync</td><td>最安全，性能成本最高</td></tr>
+            <tr><td>2</td><td>每次提交 write，不每次 fsync</td><td>OS 崩溃可能丢最近数据</td></tr>
+            <tr><td>0</td><td>后台约每秒 write + fsync</td><td>MySQL 崩溃也可能丢最近数据</td></tr>
+          </table>
+        </div>
+        <div class="mini">
+          <h3><code>sync_binlog</code></h3>
+          <table>
+            <tr><th>值</th><th>含义</th><th>风险</th></tr>
+            <tr><td>1</td><td>每次提交 fsync binlog</td><td>最安全，性能成本最高</td></tr>
+            <tr><td>0</td><td>交给 OS 刷盘</td><td>OS 崩溃可能丢 binlog</td></tr>
+            <tr><td>N</td><td>每 N 次提交 fsync</td><td>可能丢最近一批 binlog</td></tr>
+          </table>
+        </div>
+      </div>
+      <p class="muted" style="margin-top:12px">核心交易链路优先双 1。非核心、可重放数据可以评估放宽，但要先明确 RPO。</p>
+    </section>
+
+    <section id="answer" class="panel">
+      <h2>1 到 2 分钟面试口述</h2>
+      <div class="answer">
+        <p>MySQL 写入链路里，undo、redo 和 binlog 分别解决不同问题。undo 记录旧版本，用于回滚和 MVCC；redo 是 InnoDB 的物理日志，用于崩溃恢复；binlog 是 Server 层逻辑日志，用于主从复制和按时间点恢复。InnoDB 采用 WAL，所以提交时不要求数据页立刻刷盘，只要 redo 按策略落盘，脏页可以后台刷。为了保证 redo 和 binlog 对同一个事务一致，MySQL 使用两阶段提交：redo prepare、binlog fsync、redo commit。崩溃恢复时，如果 redo 已 commit 就提交；如果 redo 是 prepare，就看 binlog 是否有完整 XID，有就提交，没有就回滚。生产上还要结合刷盘参数选择安全和性能的取舍，核心业务一般用双 1。</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const buttons = Array.from(document.querySelectorAll("[data-tab]"));
+    const panels = Array.from(document.querySelectorAll(".tab-content"));
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        buttons.forEach((item) => item.classList.remove("active"));
+        panels.forEach((panel) => panel.classList.remove("active"));
+        button.classList.add("active");
+        document.getElementById("tab-" + button.dataset.tab).classList.add("active");
+      });
+    });
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Change Buffer 与唯一索引可视化解释</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --paper: #ffffff;
+      --ink: #17202a;
+      --muted: #65717f;
+      --line: #d9dee7;
+      --blue: #2f6fdf;
+      --blue-soft: #e8f0ff;
+      --green: #17845b;
+      --green-soft: #e7f6ee;
+      --amber: #a96700;
+      --amber-soft: #fff2d8;
+      --red: #bc3b35;
+      --red-soft: #fdebea;
+      --teal: #087d84;
+      --teal-soft: #e2f6f7;
+      --radius: 8px;
+      --shadow: 0 14px 30px rgba(23, 32, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.65;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(10px);
+    }
+
+    .header-inner {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 14px 20px 12px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      margin: 0 0 3px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 22px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-bottom: 6px;
+      font-size: 20px;
+      line-height: 1.3;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin-bottom: 8px;
+      font-size: 16px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    .nav {
+      display: flex;
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #f9fafc;
+      white-space: nowrap;
+    }
+
+    .nav a {
+      padding: 6px 10px;
+      color: var(--muted);
+      border-radius: 6px;
+      font-size: 14px;
+      text-decoration: none;
+    }
+
+    .nav a:hover,
+    .nav a:focus {
+      color: var(--blue);
+      background: var(--blue-soft);
+      outline: none;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 22px 20px 52px;
+    }
+
+    section {
+      margin-top: 18px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    section:first-child {
+      margin-top: 0;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .answer {
+      padding: 18px;
+      border: 1px solid #a8c6ff;
+      border-radius: var(--radius);
+      background: var(--blue-soft);
+    }
+
+    .memory {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .memory-item {
+      min-height: 82px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .memory-item strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--blue);
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .lane {
+      min-height: 380px;
+      padding: 16px;
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .lane.normal {
+      border-color: #9acbb7;
+      background: var(--green-soft);
+    }
+
+    .lane.unique {
+      border-color: #f1c16e;
+      background: var(--amber-soft);
+    }
+
+    .divider {
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .flow {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .node {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .node.good {
+      border-color: #8cc7ad;
+      background: #f4fbf7;
+    }
+
+    .node.warn {
+      border-color: #e4b869;
+      background: #fffaf0;
+    }
+
+    .node.bad {
+      border-color: #e8a09b;
+      background: #fff6f5;
+    }
+
+    .arrow {
+      color: var(--muted);
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .switcher {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .switcher button {
+      min-height: 38px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--ink);
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .switcher button.active {
+      color: #fff;
+      border-color: var(--blue);
+      background: var(--blue);
+    }
+
+    .detail {
+      margin-top: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+      min-height: 94px;
+    }
+
+    .compare {
+      width: 100%;
+      margin-top: 14px;
+      border-collapse: collapse;
+      overflow-wrap: anywhere;
+    }
+
+    .compare th,
+    .compare td {
+      padding: 10px;
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .compare th {
+      background: #f2f4f8;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .chip {
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .chip.blue {
+      color: var(--blue);
+      background: var(--blue-soft);
+      border-color: #a8c6ff;
+    }
+
+    .chip.red {
+      color: var(--red);
+      background: var(--red-soft);
+      border-color: #e8a09b;
+    }
+
+    .chip.teal {
+      color: var(--teal);
+      background: var(--teal-soft);
+      border-color: #91d5da;
+    }
+
+    .quote {
+      padding: 16px;
+      border-left: 4px solid var(--blue);
+      background: #f8fbff;
+    }
+
+    code {
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: #eef1f5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    @media (max-width: 860px) {
+      .header-inner {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        overflow-x: auto;
+      }
+
+      .hero,
+      .stage {
+        grid-template-columns: 1fr;
+      }
+
+      .divider {
+        min-height: 24px;
+      }
+
+      .memory {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 560px) {
+      main,
+      .header-inner {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      section {
+        padding: 16px;
+      }
+
+      .memory {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div>
+        <p class="eyebrow">MySQL · 基础架构与存储引擎 · L2/L3</p>
+        <h1>Change Buffer 是什么？为什么唯一索引不能用？</h1>
+      </div>
+      <nav class="nav" aria-label="页面导航">
+        <a href="#plain">先讲人话</a>
+        <a href="#flow">两条路径</a>
+        <a href="#interactive">点选理解</a>
+        <a href="#answer">面试说法</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section id="plain" class="hero">
+      <div class="answer">
+        <h2>这题到底在问什么</h2>
+        <p>它不是单纯问 Change Buffer 的定义，而是在问普通二级索引和唯一二级索引的写入路径差异。普通索引可以把索引页修改先记下来，后续再合并；唯一索引必须马上查重，所以必须读页，无法省掉这次随机读。</p>
+        <div class="memory">
+          <div class="memory-item">
+            <strong>普通索引</strong>
+            <span>可以先欠账</span>
+          </div>
+          <div class="memory-item">
+            <strong>唯一索引</strong>
+            <span>必须先查账</span>
+          </div>
+          <div class="memory-item">
+            <strong>Change Buffer</strong>
+            <span>缓存二级索引变更</span>
+          </div>
+          <div class="memory-item">
+            <strong>核心收益</strong>
+            <span>少一次随机读页</span>
+          </div>
+        </div>
+      </div>
+      <div class="answer">
+        <h2>先建立直觉</h2>
+        <p>插入一条数据时，InnoDB 不只要写主键索引，也可能要维护多个二级索引。如果目标二级索引页不在 Buffer Pool 中，直接读磁盘页会很慢。Change Buffer 就是“先把要改索引页这件事记下来”，等页以后被读进内存，再一起合并。</p>
+        <div class="chips">
+          <span class="chip blue">Buffer Pool：内存页缓存</span>
+          <span class="chip teal">二级索引：非主键索引</span>
+          <span class="chip red">唯一索引：必须查重</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="flow">
+      <h2>两条写入路径</h2>
+      <p class="muted">关键分叉点：目标二级索引页不在 Buffer Pool 中时，普通索引可以延迟，唯一索引不能延迟。</p>
+      <div class="stage">
+        <div class="lane normal">
+          <h3>普通二级索引</h3>
+          <div class="flow">
+            <div class="node">插入或更新记录，需要维护普通二级索引</div>
+            <div class="arrow">↓</div>
+            <div class="node warn">目标索引页不在 Buffer Pool</div>
+            <div class="arrow">↓</div>
+            <div class="node good">不立刻读磁盘页，把变更写入 Change Buffer</div>
+            <div class="arrow">↓</div>
+            <div class="node good">以后页被读取或后台空闲时，再 merge 到索引页</div>
+          </div>
+        </div>
+
+        <div class="divider">VS</div>
+
+        <div class="lane unique">
+          <h3>唯一二级索引</h3>
+          <div class="flow">
+            <div class="node">插入或更新记录，需要维护唯一二级索引</div>
+            <div class="arrow">↓</div>
+            <div class="node warn">目标索引页不在 Buffer Pool</div>
+            <div class="arrow">↓</div>
+            <div class="node bad">必须先读磁盘页进内存，检查是否重复</div>
+            <div class="arrow">↓</div>
+            <div class="node">不重复才插入，重复则报唯一键冲突</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="interactive">
+      <h2>点选理解</h2>
+      <p class="muted">按场景切换，看 InnoDB 为什么有时能省 I/O，有时不能省。</p>
+      <div class="switcher" role="group" aria-label="场景选择">
+        <button class="active" type="button" data-detail="目标页已经在 Buffer Pool 中，无论普通索引还是唯一索引，都可以直接在内存页上处理。Change Buffer 的主要价值不在这个场景。">页已经在 Buffer Pool</button>
+        <button type="button" data-detail="普通二级索引允许重复值，所以插入前不需要马上查重。目标页不在内存时，可以先把变更写入 Change Buffer，后续再合并，省掉一次随机读页。">普通索引页不在内存</button>
+        <button type="button" data-detail="唯一索引必须马上判断是否存在重复值。如果目标页不在内存，InnoDB 也必须把页读进来检查。既然页已经读进来了，就直接更新，没有必要再写 Change Buffer。">唯一索引页不在内存</button>
+        <button type="button" data-detail="Change Buffer 不是免费午餐。后续 merge 也会产生 I/O；如果数据集基本都在 Buffer Pool 中，或者 SSD 随机读很快，收益可能明显下降，需要结合真实 workload 压测。">什么时候收益低</button>
+      </div>
+      <div id="detail" class="detail">目标页已经在 Buffer Pool 中，无论普通索引还是唯一索引，都可以直接在内存页上处理。Change Buffer 的主要价值不在这个场景。</div>
+    </section>
+
+    <section id="compare">
+      <h2>对比记忆</h2>
+      <table class="compare">
+        <thead>
+          <tr>
+            <th>维度</th>
+            <th>普通二级索引</th>
+            <th>唯一二级索引</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>是否允许重复</td>
+            <td>允许</td>
+            <td>不允许</td>
+          </tr>
+          <tr>
+            <td>写入前是否必须查重</td>
+            <td>不需要</td>
+            <td>必须检查唯一性</td>
+          </tr>
+          <tr>
+            <td>页不在 Buffer Pool 时</td>
+            <td>可以写 Change Buffer</td>
+            <td>必须读页进内存</td>
+          </tr>
+          <tr>
+            <td>性能差异本质</td>
+            <td>可能省掉一次随机读</td>
+            <td>为了正确性不能省这次读</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="answer">
+      <h2>1-2 分钟面试回答</h2>
+      <div class="quote">
+        <p>Change Buffer 是 InnoDB 针对二级索引写入的一种优化。当要修改的普通二级索引页不在 Buffer Pool 中时，InnoDB 可以不立刻从磁盘读入这个页，而是先把索引变更记录到 Change Buffer。等后续这个页被读入 Buffer Pool，或者后台线程合并时，再把变更应用到真正的索引页上。这样可以减少随机磁盘 I/O，比较适合写多读少、二级索引页不常驻内存的场景。</p>
+        <p style="margin-top: 10px;">唯一索引不能使用这个优化，原因是唯一索引写入前必须立刻检查唯一性。为了确认是否存在重复值，InnoDB 必须访问目标索引页；如果页不在 Buffer Pool 中，也必须先从磁盘读进来。既然页已经读进内存，就可以直接更新索引页，Change Buffer 就没有省随机读的价值了。所以这题本质是在考普通索引和唯一索引在写路径上的性能差异。</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const buttons = document.querySelectorAll(".switcher button");
+    const detail = document.querySelector("#detail");
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        buttons.forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        detail.textContent = button.dataset.detail;
+      });
+    });
+  </script>
+</body>
+</html>

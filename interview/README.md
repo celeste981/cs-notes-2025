@@ -2,13 +2,20 @@
 
 当前阶段优先整理 MySQL 八股内容。目标是把每个知识点整理成“能讲清楚、能背出来、能接追问、能结合项目”的复习材料。
 
+## 新增资料入口
+
+- [LC100 面试复习资料](./lc100/README.md)：从 lc100 站点整理出的 LLM/Agent、Golang、MySQL、Redis 题目索引和重难点 HTML。
+- [Golang 面试八股](./golang/README.md)：Go 基础与类型系统题目，当前已整理 slice、map、defer、for range。
+- [Agent 面试复习](./agent/README.md)：LLM Agent、RAG、Tool Calling、Memory、Eval、安全合规，以及 AI 项目面试表达。
+
 ## 当前主线
 
 | 优先级 | 模块 | 目录 | 状态 |
 | --- | --- | --- | --- |
 | P0 | MySQL | `mysql/` | 进行中 |
 | P1 | Redis | `redis/` | 待整理 |
-| P1 | Golang | `golang/` | 待整理 |
+| P1 | Golang | `golang/` | 进行中 |
+| P1 | Agent / AI 工程 | `agent/` | 进行中 |
 | P1 | 系统设计 | `sys-design/` | 待整理 |
 | P2 | 算法 | `lc/` | 已有代码，待补题解 |
 

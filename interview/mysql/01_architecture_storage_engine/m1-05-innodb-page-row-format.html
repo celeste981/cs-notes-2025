@@ -1,0 +1,1419 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>InnoDB 数据页与行格式可视化</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --paper: #ffffff;
+      --ink: #17202a;
+      --muted: #65717f;
+      --line: #d9dee7;
+      --blue: #2f6fdf;
+      --blue-soft: #e8f0ff;
+      --green: #17845b;
+      --green-soft: #e7f6ee;
+      --amber: #b86b00;
+      --amber-soft: #fff3da;
+      --red: #c3423f;
+      --red-soft: #fdebea;
+      --violet: #6956c2;
+      --violet-soft: #f0edff;
+      --teal: #087d84;
+      --teal-soft: #e2f6f7;
+      --radius: 8px;
+      --shadow: 0 16px 36px rgba(23, 32, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.65;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+
+    .header-inner {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 14px 20px 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .brand {
+      min-width: 0;
+    }
+
+    .eyebrow {
+      margin: 0 0 2px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .nav {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      padding: 4px;
+      border: 1px solid var(--line);
+      background: #f9fafc;
+      border-radius: var(--radius);
+      white-space: nowrap;
+    }
+
+    .nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      padding: 6px 10px;
+      border-radius: 6px;
+    }
+
+    .nav a:hover,
+    .nav a:focus {
+      background: var(--blue-soft);
+      color: var(--blue);
+      outline: none;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 22px 20px 52px;
+    }
+
+    section {
+      margin-top: 18px;
+      padding: 22px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    section:first-child {
+      margin-top: 0;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: start;
+      margin-bottom: 18px;
+    }
+
+    h2 {
+      margin: 0 0 4px;
+      font-size: 20px;
+      line-height: 1.3;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: #f2f4f8;
+      color: var(--muted);
+      font-size: 13px;
+      border: 1px solid var(--line);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .answer-box {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .answer-box strong {
+      color: var(--blue);
+    }
+
+    .memory-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .memory-item {
+      min-height: 86px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .memory-item .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      margin-bottom: 8px;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--blue);
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .visual-shell {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .visual-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfe;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .page-visual {
+      position: relative;
+      min-height: 540px;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: minmax(170px, 0.7fr) minmax(0, 1fr);
+      gap: 14px;
+    }
+
+    .page-stack {
+      display: grid;
+      grid-template-rows: 46px 60px 52px minmax(150px, 1fr) 78px 74px 42px;
+      min-height: 500px;
+      border: 2px solid #283443;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .segment {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      border: 0;
+      border-bottom: 1px solid rgba(23, 32, 42, 0.18);
+      padding: 8px 10px;
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, outline-color 0.15s ease;
+    }
+
+    .segment:last-child {
+      border-bottom: 0;
+    }
+
+    .segment:hover,
+    .segment:focus {
+      transform: translateY(-1px);
+      outline: 3px solid rgba(47, 111, 223, 0.22);
+      outline-offset: -3px;
+    }
+
+    .segment.active {
+      box-shadow: inset 4px 0 0 var(--blue);
+    }
+
+    .segment-name {
+      font-weight: 700;
+      line-height: 1.25;
+      word-break: keep-all;
+    }
+
+    .segment-size {
+      color: rgba(23, 32, 42, 0.72);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .file-header {
+      background: var(--blue-soft);
+    }
+
+    .page-header {
+      background: var(--teal-soft);
+    }
+
+    .virtual-records {
+      background: var(--violet-soft);
+    }
+
+    .user-records {
+      background: var(--green-soft);
+    }
+
+    .free-space {
+      background: #f7f8fb;
+    }
+
+    .page-directory {
+      background: var(--amber-soft);
+    }
+
+    .file-trailer {
+      background: var(--red-soft);
+    }
+
+    .detail-panel {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .detail-card {
+      min-height: 172px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+      background: #fbfcfe;
+    }
+
+    .detail-card h3 {
+      font-size: 18px;
+      margin-bottom: 6px;
+    }
+
+    .detail-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0 0;
+    }
+
+    .mini-btree {
+      min-height: 154px;
+      border: 1px dashed #cbd4df;
+      border-radius: var(--radius);
+      padding: 14px;
+      background: #fff;
+    }
+
+    .tree-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .tree-node {
+      min-width: 112px;
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 7px 10px;
+      border: 1px solid #cbd4df;
+      border-radius: 6px;
+      background: #f9fafc;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .tree-node.leaf {
+      background: var(--green-soft);
+      border-color: #9bd5bc;
+    }
+
+    .tree-link {
+      height: 28px;
+      width: 1px;
+      margin: 6px auto;
+      background: #aab5c2;
+    }
+
+    .tip-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .tip {
+      padding: 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: #fff;
+      min-height: 104px;
+    }
+
+    .tip strong {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .lookup-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .lookup-board {
+      min-height: 390px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .directory {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .slot {
+      position: relative;
+      min-height: 74px;
+      padding: 10px;
+      border: 2px solid #cbd4df;
+      border-radius: var(--radius);
+      background: #fff;
+      transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    }
+
+    .slot.active {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+      transform: translateY(-2px);
+    }
+
+    .slot.target {
+      border-color: var(--amber);
+      background: var(--amber-soft);
+    }
+
+    .slot small {
+      color: var(--muted);
+    }
+
+    .records-chain {
+      display: grid;
+      grid-template-columns: repeat(16, minmax(34px, 1fr));
+      gap: 8px;
+      align-items: center;
+    }
+
+    .record {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #cbd4df;
+      border-radius: 6px;
+      background: #fff;
+      font-weight: 700;
+      transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    }
+
+    .record.scanned {
+      background: var(--blue-soft);
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    .record.found {
+      background: var(--green-soft);
+      border-color: var(--green);
+      color: var(--green);
+      transform: translateY(-2px);
+    }
+
+    .lookup-side {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 16px;
+    }
+
+    .step-list {
+      display: grid;
+      gap: 10px;
+      margin: 0 0 14px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .step-list li {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--muted);
+      background: #fbfcfe;
+    }
+
+    .step-list li.active {
+      border-color: var(--blue);
+      color: var(--ink);
+      background: var(--blue-soft);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn {
+      min-height: 38px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    .btn.primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .btn:hover,
+    .btn:focus {
+      outline: 3px solid rgba(47, 111, 223, 0.22);
+      outline-offset: 1px;
+    }
+
+    .calc-layout {
+      display: grid;
+      grid-template-columns: 330px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .controls {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .control-group {
+      margin-bottom: 18px;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--blue);
+    }
+
+    .formula {
+      padding: 12px;
+      border-radius: var(--radius);
+      background: #fff;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .capacity-board {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 16px;
+      min-height: 424px;
+    }
+
+    .capacity-top {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .metric {
+      min-height: 92px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .metric .value {
+      display: block;
+      font-size: 28px;
+      line-height: 1.1;
+      font-weight: 800;
+      color: var(--blue);
+      margin-top: 4px;
+    }
+
+    .page-fill {
+      height: 36px;
+      overflow: hidden;
+      border: 1px solid #cbd4df;
+      border-radius: 999px;
+      background: #f2f4f8;
+      margin: 16px 0 14px;
+    }
+
+    .page-fill-inner {
+      height: 100%;
+      width: 70%;
+      background: linear-gradient(90deg, var(--green), var(--amber));
+      transition: width 0.2s ease;
+    }
+
+    .record-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(18px, 1fr));
+      gap: 5px;
+      min-height: 190px;
+      padding: 12px;
+      border: 1px dashed #cbd4df;
+      border-radius: var(--radius);
+      background: #fbfcfe;
+      align-content: start;
+    }
+
+    .mini-record {
+      aspect-ratio: 1;
+      border-radius: 4px;
+      background: var(--green);
+      opacity: 0.9;
+    }
+
+    .warning {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border: 1px solid #e9b5b2;
+      background: var(--red-soft);
+      color: #7f2725;
+      border-radius: var(--radius);
+      display: none;
+    }
+
+    .warning.show {
+      display: block;
+    }
+
+    .format-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .format-card {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .record-parts {
+      display: grid;
+      grid-template-columns: 1.05fr 0.85fr 0.9fr 1.2fr 1.15fr;
+      gap: 6px;
+      margin: 14px 0;
+      min-height: 68px;
+    }
+
+    .part {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      padding: 8px 6px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.25;
+      background: #fff;
+    }
+
+    .compact-flow,
+    .dynamic-flow {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      margin-top: 14px;
+    }
+
+    .field-box,
+    .overflow-box {
+      min-height: 96px;
+      padding: 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-weight: 900;
+    }
+
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+      font-size: 14px;
+    }
+
+    .compare-table th,
+    .compare-table td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .compare-table th {
+      background: #f2f4f8;
+    }
+
+    .qa-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .qa-card {
+      min-height: 170px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .qa-card strong {
+      color: var(--blue);
+    }
+
+    .speak {
+      padding: 16px;
+      border: 1px solid #a8c6ff;
+      border-radius: var(--radius);
+      background: var(--blue-soft);
+      margin-top: 14px;
+    }
+
+    code {
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: #eef1f5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+    }
+
+    @media (max-width: 980px) {
+      .header-inner,
+      .hero-grid,
+      .lookup-layout,
+      .calc-layout,
+      .format-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        overflow-x: auto;
+        justify-content: flex-start;
+      }
+
+      .memory-strip,
+      .tip-grid,
+      .capacity-top,
+      .qa-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .lookup-side {
+        order: -1;
+      }
+    }
+
+    @media (max-width: 640px) {
+      main {
+        padding: 14px 12px 36px;
+      }
+
+      section {
+        padding: 16px;
+      }
+
+      .header-inner,
+      .section-head,
+      .page-visual,
+      .memory-strip,
+      .tip-grid,
+      .capacity-top,
+      .qa-grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 19px;
+      }
+
+      h2 {
+        font-size: 18px;
+      }
+
+      .records-chain {
+        grid-template-columns: repeat(8, 1fr);
+      }
+
+      .directory {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .record-parts {
+        grid-template-columns: 1fr;
+      }
+
+      .compact-flow,
+      .dynamic-flow {
+        grid-template-columns: 1fr;
+      }
+
+      .arrow {
+        width: 42px;
+        margin: 0 auto;
+        transform: rotate(90deg);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <p class="eyebrow">MySQL 面试可视化 · 基础架构与存储引擎 L3</p>
+        <h1>InnoDB 数据页结构、页内查找与行格式</h1>
+      </div>
+      <nav class="nav" aria-label="页面导航">
+        <a href="#page">数据页</a>
+        <a href="#lookup">页内查找</a>
+        <a href="#capacity">能存几行</a>
+        <a href="#format">行格式</a>
+        <a href="#speak">面试说法</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="hero-grid">
+        <div class="answer-box">
+          <h2>先抓住一句话</h2>
+          <p>
+            InnoDB 默认按 <strong>16KB 的 Page</strong> 管数据；一页里有管理信息、虚拟记录、用户记录、空闲空间、页目录和校验信息。页内记录靠 <strong>链表</strong> 串起来，查找靠 <strong>Page Directory</strong> 先二分定位分组，再组内遍历。行格式决定一条记录内部怎么存，以及大字段是否放到溢出页。
+          </p>
+          <div class="memory-strip">
+            <div class="memory-item">
+              <span class="num">1</span>
+              <strong>Page 是单位</strong>
+              <p class="muted">读写和缓存通常按页，不是按单行。</p>
+            </div>
+            <div class="memory-item">
+              <span class="num">2</span>
+              <strong>页里有结构</strong>
+              <p class="muted">头、记录、空闲区、目录、尾部校验。</p>
+            </div>
+            <div class="memory-item">
+              <span class="num">3</span>
+              <strong>目录加速查找</strong>
+              <p class="muted">先二分找组，再在组里顺链表找。</p>
+            </div>
+            <div class="memory-item">
+              <span class="num">4</span>
+              <strong>行宽决定行数</strong>
+              <p class="muted">100B 一行约 150 行，大字段可能溢出。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="visual-shell">
+          <div class="visual-title">
+            <span>从 B+ 树看数据页位置</span>
+            <span>叶子页存完整行</span>
+          </div>
+          <div class="mini-btree" aria-label="B+ 树和数据页关系图">
+            <div class="tree-row">
+              <div class="tree-node">根页<br>索引导航</div>
+            </div>
+            <div class="tree-link"></div>
+            <div class="tree-row">
+              <div class="tree-node">内部页</div>
+              <div class="tree-node">内部页</div>
+            </div>
+            <div class="tree-link"></div>
+            <div class="tree-row">
+              <div class="tree-node leaf">数据页<br>16KB</div>
+              <div class="tree-node leaf">数据页<br>16KB</div>
+              <div class="tree-node leaf">数据页<br>16KB</div>
+            </div>
+            <p class="muted" style="margin-top: 14px;">
+              聚簇索引的叶子节点就是常说的数据页。主键查询最终会定位到某个 16KB 页，再在页内找记录。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="page">
+      <div class="section-head">
+        <div>
+          <h2>1. 一个 16KB 数据页里面有什么</h2>
+          <p class="muted">点击左边每个区域，看它在页里负责什么。</p>
+        </div>
+        <span class="pill">默认页大小：16KB</span>
+      </div>
+
+      <div class="page-visual">
+        <div class="page-stack" aria-label="InnoDB 数据页结构">
+          <button class="segment file-header active" data-part="fileHeader" type="button">
+            <span class="segment-name">File Header</span>
+            <span class="segment-size">38B</span>
+          </button>
+          <button class="segment page-header" data-part="pageHeader" type="button">
+            <span class="segment-name">Page Header</span>
+            <span class="segment-size">56B</span>
+          </button>
+          <button class="segment virtual-records" data-part="virtualRecords" type="button">
+            <span class="segment-name">Infimum / Supremum</span>
+            <span class="segment-size">虚拟记录</span>
+          </button>
+          <button class="segment user-records" data-part="userRecords" type="button">
+            <span class="segment-name">User Records</span>
+            <span class="segment-size">真实数据行</span>
+          </button>
+          <button class="segment free-space" data-part="freeSpace" type="button">
+            <span class="segment-name">Free Space</span>
+            <span class="segment-size">可用空间</span>
+          </button>
+          <button class="segment page-directory" data-part="pageDirectory" type="button">
+            <span class="segment-name">Page Directory</span>
+            <span class="segment-size">页内目录</span>
+          </button>
+          <button class="segment file-trailer" data-part="fileTrailer" type="button">
+            <span class="segment-name">File Trailer</span>
+            <span class="segment-size">8B</span>
+          </button>
+        </div>
+
+        <div class="detail-panel">
+          <div class="detail-card" id="partDetail" aria-live="polite"></div>
+          <div class="tip-grid">
+            <div class="tip">
+              <strong>页头不是用户数据</strong>
+              <p class="muted">它保存页号、校验和、前后页指针等管理信息。</p>
+            </div>
+            <div class="tip">
+              <strong>记录从前往后长</strong>
+              <p class="muted">新插入记录会逐渐消耗中间的 Free Space。</p>
+            </div>
+            <div class="tip">
+              <strong>目录从后往前长</strong>
+              <p class="muted">Page Directory 放在页尾附近，保存分组偏移量。</p>
+            </div>
+          </div>
+          <div class="answer-box">
+            <h3>把它想成一本书的一页</h3>
+            <p class="muted">
+              File Header 像页码和装订信息，Page Header 像本页统计信息，User Records 是正文，Page Directory 像页内索引，File Trailer 像校验章。真正的数据只是一部分，不是整个 16KB 都能拿来放行。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="lookup">
+      <div class="section-head">
+        <div>
+          <h2>2. 为什么页内既有链表，又有 Page Directory</h2>
+          <p class="muted">按步骤演示：先在页目录里二分定位分组，再在组内顺着链表找。</p>
+        </div>
+        <span class="pill">查找目标：记录 11</span>
+      </div>
+
+      <div class="lookup-layout">
+        <div class="lookup-board">
+          <h3>Page Directory：每个槽管一组记录</h3>
+          <div class="directory" id="directory">
+            <div class="slot" data-slot="0"><strong>槽 1</strong><br><small>最大记录 4</small></div>
+            <div class="slot" data-slot="1"><strong>槽 2</strong><br><small>最大记录 8</small></div>
+            <div class="slot" data-slot="2"><strong>槽 3</strong><br><small>最大记录 12</small></div>
+            <div class="slot" data-slot="3"><strong>槽 4</strong><br><small>最大记录 16</small></div>
+          </div>
+
+          <h3>页内记录链表：按主键顺序连接</h3>
+          <div class="records-chain" id="recordsChain" aria-label="页内记录链表"></div>
+        </div>
+
+        <aside class="lookup-side">
+          <h3>查找过程</h3>
+          <ol class="step-list" id="lookupSteps">
+            <li class="active">1. 对 Page Directory 做二分查找。</li>
+            <li>2. 发现记录 11 应该在最大记录为 12 的分组。</li>
+            <li>3. 进入该分组，只顺着链表扫描 9、10、11。</li>
+            <li>4. 找到记录 11，不需要从整页第一条扫到最后。</li>
+          </ol>
+          <div class="actions">
+            <button class="btn primary" id="nextStep" type="button">下一步</button>
+            <button class="btn" id="resetStep" type="button">重置</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="capacity">
+      <div class="section-head">
+        <div>
+          <h2>3. 一页到底能存多少条记录</h2>
+          <p class="muted">拖动平均行大小，观察 16KB 页大概能放多少行。</p>
+        </div>
+        <span class="pill">估算，不是精确公式</span>
+      </div>
+
+      <div class="calc-layout">
+        <div class="controls">
+          <div class="control-group">
+            <label for="rowSize">
+              <span>平均每行大小</span>
+              <span><output id="rowSizeValue">100</output>B</span>
+            </label>
+            <input id="rowSize" type="range" min="40" max="1200" step="10" value="100">
+            <p class="muted">包含字段值、记录头、NULL 标记、变长字段长度、隐藏列等摊销开销。</p>
+          </div>
+
+          <div class="control-group">
+            <label for="overhead">
+              <span>页内管理开销估算</span>
+              <span><output id="overheadValue">220</output>B</span>
+            </label>
+            <input id="overhead" type="range" min="120" max="900" step="20" value="220">
+            <p class="muted">页头、页尾、虚拟记录、页目录等会占空间。</p>
+          </div>
+
+          <div class="formula" id="formula">
+            floor((16384 - 220) / 100) = 161
+          </div>
+        </div>
+
+        <div class="capacity-board">
+          <div class="capacity-top">
+            <div class="metric">
+              <span class="muted">估算可放</span>
+              <span class="value" id="capacityValue">161</span>
+              <span class="muted">条记录</span>
+            </div>
+            <div class="metric">
+              <span class="muted">可用空间</span>
+              <span class="value" id="usableValue">16164</span>
+              <span class="muted">字节</span>
+            </div>
+            <div class="metric">
+              <span class="muted">空间利用</span>
+              <span class="value" id="usageValue">98%</span>
+              <span class="muted">粗略估算</span>
+            </div>
+          </div>
+
+          <div class="page-fill" aria-label="页空间使用比例">
+            <div class="page-fill-inner" id="pageFill"></div>
+          </div>
+
+          <div class="record-grid" id="recordGrid" aria-label="估算记录数量可视化"></div>
+          <div class="warning" id="rowWarning">
+            单行已经很宽。默认 16KB 页下，本页内存储部分通常不能接近整页大小；大字段会通过溢出页处理。
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="format">
+      <div class="section-head">
+        <div>
+          <h2>4. 行格式到底在区别什么</h2>
+          <p class="muted">先看一条记录内部怎么摆，再看大字段怎么放。</p>
+        </div>
+        <span class="pill">重点：COMPACT vs DYNAMIC</span>
+      </div>
+
+      <div class="format-layout">
+        <div class="format-card">
+          <h3>COMPACT：本页会保留大字段前缀</h3>
+          <div class="record-parts" aria-label="COMPACT 记录结构">
+            <div class="part" style="background: var(--teal-soft);">变长字段长度列表</div>
+            <div class="part" style="background: var(--amber-soft);">NULL 标记</div>
+            <div class="part" style="background: var(--blue-soft);">5B 记录头</div>
+            <div class="part" style="background: var(--violet-soft);">隐藏列<br>trx_id / roll_pointer</div>
+            <div class="part" style="background: var(--green-soft);">实际列数据</div>
+          </div>
+          <div class="compact-flow">
+            <div class="field-box">
+              <strong>当前数据页</strong>
+              <p class="muted">大字段前 768B + 20B 指针</p>
+            </div>
+            <div class="arrow">→</div>
+            <div class="overflow-box">
+              <strong>溢出页</strong>
+              <p class="muted">剩余的大字段内容</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="format-card">
+          <h3>DYNAMIC：本页主要保留指针</h3>
+          <div class="record-parts" aria-label="DYNAMIC 记录结构">
+            <div class="part" style="background: var(--teal-soft);">变长字段长度列表</div>
+            <div class="part" style="background: var(--amber-soft);">NULL 标记</div>
+            <div class="part" style="background: var(--blue-soft);">5B 记录头</div>
+            <div class="part" style="background: var(--violet-soft);">隐藏列<br>trx_id / roll_pointer</div>
+            <div class="part" style="background: var(--green-soft);">实际列数据</div>
+          </div>
+          <div class="dynamic-flow">
+            <div class="field-box">
+              <strong>当前数据页</strong>
+              <p class="muted">20B 指针</p>
+            </div>
+            <div class="arrow">→</div>
+            <div class="overflow-box">
+              <strong>溢出页</strong>
+              <p class="muted">完整大字段内容</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>行格式</th>
+            <th>你需要记住的点</th>
+            <th>面试说法</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>REDUNDANT</td>
+            <td>老格式，额外信息多。</td>
+            <td>了解历史兼容即可。</td>
+          </tr>
+          <tr>
+            <td>COMPACT</td>
+            <td>紧凑格式；大字段溢出时，本页可能留前 768B 加指针。</td>
+            <td>能说清一条记录内部结构。</td>
+          </tr>
+          <tr>
+            <td>DYNAMIC</td>
+            <td>大字段更彻底放到溢出页，本页通常只留 20B 指针。</td>
+            <td>MySQL 5.7.9+ 和 8.0 常见默认，更适合大字段表。</td>
+          </tr>
+          <tr>
+            <td>COMPRESSED</td>
+            <td>页压缩，节省空间和 I/O，但消耗 CPU。</td>
+            <td>线上使用要看压缩收益和 CPU 成本。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="speak">
+      <div class="section-head">
+        <div>
+          <h2>5. 面试时怎么讲</h2>
+          <p class="muted">先讲短答，再根据追问展开。</p>
+        </div>
+        <span class="pill">1-2 分钟版本</span>
+      </div>
+
+      <div class="speak">
+        <p>
+          InnoDB 默认按 16KB 的 Page 管理数据，表数据在聚簇索引 B+ 树里，叶子节点页就是数据页。一个数据页里不只有用户记录，还包括 File Header、Page Header、Infimum/Supremum 虚拟记录、User Records、Free Space、Page Directory 和 File Trailer。页内记录通过 <code>next_record</code> 按主键顺序形成链表，Page Directory 是稀疏目录，先二分定位分组，再在组内顺链表找。每页能存多少行取决于平均行大小，比如每行 100B 左右，16KB 页扣掉开销后大概能放 150 行。行格式方面，常见有 REDUNDANT、COMPACT、DYNAMIC、COMPRESSED，重点是 COMPACT 会在本页保留大字段前 768B 和指针，而 DYNAMIC 更倾向于本页只留 20B 指针，把完整大字段放到溢出页。
+        </p>
+      </div>
+
+      <div class="qa-grid" style="margin-top: 14px;">
+        <div class="qa-card">
+          <h3>追问：为什么一行不能接近 16KB？</h3>
+          <p><strong>答：</strong>B+ 树页至少要能放两条记录，才能正常分裂和维护树结构。大字段会放到溢出页，不会都硬塞在当前页。</p>
+        </div>
+        <div class="qa-card">
+          <h3>追问：varchar(255) 和 varchar(256) 差异？</h3>
+          <p><strong>答：</strong>看最大字节数。最大不超过 255 字节，长度可用 1 字节；超过通常要 2 字节。注意 <code>utf8mb4</code> 下 255 个字符可能是 1020 字节。</p>
+        </div>
+        <div class="qa-card">
+          <h3>追问：为什么不每条记录一个目录槽？</h3>
+          <p><strong>答：</strong>太浪费。Page Directory 是页内稀疏索引，先缩小到一组记录，再组内扫描，空间和性能更平衡。</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const pageParts = {
+      fileHeader: {
+        title: "File Header",
+        size: "38 字节",
+        role: "文件层信息。记录页号、校验和、上一页/下一页指针、页类型和 LSN 等。",
+        remember: "它回答的是：这个页是谁、在哪里、是否完整。"
+      },
+      pageHeader: {
+        title: "Page Header",
+        size: "56 字节",
+        role: "页内管理信息。记录槽数量、堆顶位置、记录数量、空闲链表、最近插入位置等。",
+        remember: "它回答的是：这个页内部现在是什么状态。"
+      },
+      virtualRecords: {
+        title: "Infimum / Supremum",
+        size: "固定存在",
+        role: "两条虚拟记录。Infimum 比任何真实记录都小，Supremum 比任何真实记录都大。",
+        remember: "它们让页内链表边界处理更统一。"
+      },
+      userRecords: {
+        title: "User Records",
+        size: "大小不固定",
+        role: "真正的用户数据行。聚簇索引叶子页里的用户记录包含完整行数据。",
+        remember: "面试说一页能放多少行，主要看的就是这里能装多少记录。"
+      },
+      freeSpace: {
+        title: "Free Space",
+        size: "大小不固定",
+        role: "还没被使用的空间。插入新记录时，通常会从这里分配空间。",
+        remember: "记录越多，Free Space 越小。"
+      },
+      pageDirectory: {
+        title: "Page Directory",
+        size: "大小不固定",
+        role: "页内稀疏目录。每个槽保存一组记录中最大记录的偏移量。",
+        remember: "它让页内查找可以先二分定位分组，不用从头扫整页。"
+      },
+      fileTrailer: {
+        title: "File Trailer",
+        size: "8 字节",
+        role: "页尾校验信息。用于判断页写入是否完整、是否损坏。",
+        remember: "它像页尾的校验章。"
+      }
+    };
+
+    const detail = document.getElementById("partDetail");
+    const segments = Array.from(document.querySelectorAll(".segment"));
+
+    function renderPart(partKey) {
+      const item = pageParts[partKey];
+      detail.innerHTML = `
+        <h3>${item.title}</h3>
+        <p class="muted">${item.role}</p>
+        <div class="detail-meta">
+          <span class="pill">${item.size}</span>
+          <span class="pill">${item.remember}</span>
+        </div>
+      `;
+      segments.forEach((segment) => {
+        segment.classList.toggle("active", segment.dataset.part === partKey);
+      });
+    }
+
+    segments.forEach((segment) => {
+      segment.addEventListener("click", () => renderPart(segment.dataset.part));
+    });
+    renderPart("fileHeader");
+
+    const recordsChain = document.getElementById("recordsChain");
+    for (let i = 1; i <= 16; i += 1) {
+      const node = document.createElement("div");
+      node.className = "record";
+      node.dataset.record = String(i);
+      node.textContent = i;
+      recordsChain.appendChild(node);
+    }
+
+    let lookupStep = 0;
+    const steps = Array.from(document.querySelectorAll("#lookupSteps li"));
+    const slots = Array.from(document.querySelectorAll(".slot"));
+    const recordNodes = Array.from(document.querySelectorAll(".record"));
+
+    function renderLookup() {
+      steps.forEach((step, index) => step.classList.toggle("active", index === lookupStep));
+      slots.forEach((slot) => {
+        slot.classList.remove("active", "target");
+      });
+      recordNodes.forEach((record) => {
+        record.classList.remove("scanned", "found");
+      });
+
+      if (lookupStep === 0) {
+        slots[1].classList.add("active");
+        slots[2].classList.add("active");
+      }
+      if (lookupStep === 1) {
+        slots[2].classList.add("target");
+      }
+      if (lookupStep === 2) {
+        slots[2].classList.add("target");
+        [9, 10, 11].forEach((num) => {
+          document.querySelector(`[data-record="${num}"]`).classList.add(num === 11 ? "found" : "scanned");
+        });
+      }
+      if (lookupStep === 3) {
+        slots[2].classList.add("target");
+        document.querySelector('[data-record="11"]').classList.add("found");
+      }
+    }
+
+    document.getElementById("nextStep").addEventListener("click", () => {
+      lookupStep = (lookupStep + 1) % 4;
+      renderLookup();
+    });
+
+    document.getElementById("resetStep").addEventListener("click", () => {
+      lookupStep = 0;
+      renderLookup();
+    });
+
+    renderLookup();
+
+    const pageSize = 16384;
+    const rowSize = document.getElementById("rowSize");
+    const overhead = document.getElementById("overhead");
+    const rowSizeValue = document.getElementById("rowSizeValue");
+    const overheadValue = document.getElementById("overheadValue");
+    const formula = document.getElementById("formula");
+    const capacityValue = document.getElementById("capacityValue");
+    const usableValue = document.getElementById("usableValue");
+    const usageValue = document.getElementById("usageValue");
+    const pageFill = document.getElementById("pageFill");
+    const recordGrid = document.getElementById("recordGrid");
+    const rowWarning = document.getElementById("rowWarning");
+
+    function renderCapacity() {
+      const row = Number(rowSize.value);
+      const fixed = Number(overhead.value);
+      const usable = Math.max(pageSize - fixed, 0);
+      const capacity = Math.max(Math.floor(usable / row), 0);
+      const used = capacity * row;
+      const usage = usable > 0 ? Math.round((used / pageSize) * 100) : 0;
+
+      rowSizeValue.textContent = row;
+      overheadValue.textContent = fixed;
+      formula.textContent = `floor((16384 - ${fixed}) / ${row}) = ${capacity}`;
+      capacityValue.textContent = capacity;
+      usableValue.textContent = usable;
+      usageValue.textContent = `${usage}%`;
+      pageFill.style.width = `${Math.min(100, usage)}%`;
+      rowWarning.classList.toggle("show", row >= 800);
+
+      recordGrid.innerHTML = "";
+      const visible = Math.min(capacity, 180);
+      for (let i = 0; i < visible; i += 1) {
+        const dot = document.createElement("span");
+        dot.className = "mini-record";
+        dot.title = `记录 ${i + 1}`;
+        recordGrid.appendChild(dot);
+      }
+      if (capacity > visible) {
+        const more = document.createElement("span");
+        more.className = "pill";
+        more.style.gridColumn = "1 / -1";
+        more.textContent = `这里只画出 ${visible} 条，实际估算 ${capacity} 条`;
+        recordGrid.appendChild(more);
+      }
+    }
+
+    rowSize.addEventListener("input", renderCapacity);
+    overhead.addEventListener("input", renderCapacity);
+    renderCapacity();
+  </script>
+</body>
+</html>
